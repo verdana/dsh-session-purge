@@ -1,0 +1,27 @@
+# Prebuilt tarball releases: dsh plugin add skips the build-approval step
+# when installing from a GitHub Release tarball (see awesome-dsh-plugin
+# contributing notes). npm pack produces the same layout regardless of
+# whether the package is ever published to the npm registry.
+name: release
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  tarball:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Pack
+        run: |
+          npm pack
+          mv dsh-session-delete-*.tgz dsh-session-delete.tgz
+      - name: Attach to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dsh-session-delete.tgz
