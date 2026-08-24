@@ -23,6 +23,13 @@
     }
   },
   "license": "MIT",
+  "files": [
+    "lib",
+    "client",
+    "cordis.patch.yml",
+    "README.md",
+    "LICENSE"
+  ],
   "keywords": [
     "deepseek",
     "harness",
