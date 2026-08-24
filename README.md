@@ -45,13 +45,23 @@ UI 原语（primitives）种子模块被 `Object.freeze` 冻结，组件级猴�
 ## 安装
 
 ```sh
+# 从 GitHub 仓库安装
+dsh plugin --profile web add github:<owner>/dsh-session-delete
+
+# 或从 Release 预构建 tarball 安装（免构建授权）
+dsh plugin --profile web add <release-tarball-url>
+
+# 或本地开发
 dsh plugin --profile web add file:$HOME/Documents/dsh-session-delete
-# 然后把 "dsh-session-delete" 加进 ~/.dsh/profiles/web/package.json
-# 的 dsh.profile.bundles 数组，重启 dsh web。
-# 注意：pnpm 对 file: 依赖是复制/硬链接部署——改完源码后需要把
-# client/client.js 等文件同步到 ~/.dsh/profiles/web/node_modules/dsh-session-delete/
-# （或重跑 pnpm install），HMR 会在下一次轮询时热更新浏览器端插件。
 ```
+
+装完把 `"dsh-session-delete"` 加进 `~/.dsh/profiles/web/package.json` 的
+`dsh.profile.bundles` 数组，重启 `dsh web`。
+
+> 本地开发注意：pnpm 对 `file:` 依赖是复制/硬链接部署——改完源码后需要把
+> `client/client.js`、`lib/index.js` 等文件同步到
+> `~/.dsh/profiles/web/node_modules/dsh-session-delete/`（或重跑 pnpm install），
+> HMR 会在下一次轮询时热更新浏览器端插件。
 
 ## 结构
 
