@@ -209,30 +209,92 @@ UI 原语（primitives）种子模块被 `Object.freeze` 冻结，组件级猴�
 ## 安装
 
 ```sh
-# 从 GitHub 仓库安装
-dsh plugin --profile web add github:<owner>/dsh-session-purge
+# 从 npm 安装（推荐）
+dsh plugin --profile web add dsh-session-purge
 
-# 或本地开发（link: 免复制，改完源码直接生效）
-dsh plugin --profile web add link:D:/deepseek-harness/dsh-session-purge
+# 从 GitHub 仓库安装
+dsh plugin --profile web add github:verdana/dsh-session-purge
 
 # 或 Release 预构建 tarball
 dsh plugin --profile web add <release-tarball-url>
+
+# 或本地开发（link: 免复制，改完源码直接生效）
+dsh plugin --profile web add link:D:/deepseek-harness/dsh-session-purge
 ```
 
 `dsh plugin add` 会把包写进 `~/.dsh/profiles/web/package.json` 的依赖，并自动在
 `dsh.profile.bundles` 里补上 `"dsh-session-purge"`（前提是包声明了
-`dsh.bundle.patch`）。装完重启 `dsh web`。
+`dsh.bundle.patch`）。装完重启 `dsh web`。升级：`dsh plugin --profile web update dsh-session-purge`。
 
 > 本地开发注意：`link:` 依赖是指向源码目录的链接，改完 `lib/index.js` /
 > `client/client.js` 无需重新安装；客户端热更新在下次轮询时生效，Host 侧改动
 > 通常需要重启 `dsh web`。
+>
+> 但要注意 pnpm 的脾气：再跑一次 `dsh plugin add`（或 `install`）有可能把这条
+> 链接换成一份**拷贝**，之后改源码就不生效了。判断方法：看
+> `~/.dsh/profiles/web/node_modules/dsh-session-purge` 是不是 junction/symlink
+> （Windows 上 `Get-Item <path> | Select LinkType`）。
+
+## 发布到 npm
+
+一行 `npm publish` 在这个仓库里不够用：本机 `~/.npmrc` 的 registry 指向只读的
+腾讯镜像，而发布前有几项事实必须核查。`scripts/publish-npm.mjs` 把它们串成一条
+带闸门的流水线，**默认只核查不发布**：
+
+```sh
+npm run release:check              # 六道闸门 + tarball 内容清单，不发布
+npm run release                    # 真发布
+npm run release -- --smoke         # 发布 + 把发布的版本装进隔离 home 冒烟
+npm run release -- --bump patch --smoke   # 升版发布
+```
+
+**经 `npm run` 传参要放在 `--` 之后**，否则 npm 会把参数当成自己的配置项。
+
+```sh
+# 首次发布前的准备（脚本会直接给出确切命令）
+node scripts/publish-npm.mjs --set-license "Verdana Mu" --create-repo-field
+npm login --registry https://registry.npmjs.org/     # 必须显式带 --registry
+node scripts/publish-npm.mjs --publish --smoke
+```
+
+六道闸门，任一不过就停：
+
+| # | 闸门 | 不过时的含义 |
+| --- | --- | --- |
+| 1 | 工作树干净、在 main/master 上 | 发出去的东西对不上任何提交（`--allow-dirty` / `--allow-branch` 可放行，不推荐） |
+| 2 | `name`/`version`/`license`/`files`/`dsh` 段齐全，LICENSE 版权人不是占位符，`repository` 在 | npm 包页取图失败、dsh 认不出这是插件包、版权人写着「contributors」 |
+| 3 | `npm test` 通过 | 本包无构建步骤，测试就是唯一的自动校验 |
+| 4 | tarball 恰好是那 6 个文件、且体量正常 | `files` 白名单写漏，或混进 `tools/`、`.github/`、`pnpm-lock.yaml` |
+| 5 | registry 上没有这个版本、当前身份是维护者 | 同版本重发会被拒（`--bump patch` 解决）、发到别人的包上会 403 |
+| 6 | `npm publish` | 默认跳过；只有 `--publish` 才走 |
+
+几个设计点：
+
+- **只有一道确认闸门：`--publish`。** 不带它一律只核查，并在结尾打印确切的发布命令。
+- **`--bump` 只改 `package.json`**（`npm version --no-git-tag-version`），git commit
+  与 `v<版本>` tag 放在**发布成功之后**打——发布失败不该在仓库里留悬空的版本提交。
+- **凭据只在真要发布那一步碰**：`NPM_TOKEN` 会临时写成仓库级 `.npmrc`，结束立刻删；
+  核查阶段永远不写。`~/.npmrc` 里的 proxy / `strict-ssl=false` 原样继承。
+- **`--smoke` 调 `tools/smoke-install.mjs`**：把包（本地 tarball 或已发布的版本）
+  装进临时 `DSH_HOME`，确认「能装 + 进 `dsh.profile.bundles` + Host 半边装载」
+  （判据是 `/session-purge/state` 返回 200 且 `persistence=true`）。不碰你的 `~/.dsh`。
+- 本机已知情况：`~/.npmrc` 里那个 `//registry.npmjs.org/:_authToken` 目前
+  `npm whoami` 返回 401（token 可能已失效或被代理拦）。只核查模式会警告并继续，
+  真发布前请先 `npm login --registry https://registry.npmjs.org/` 确认身份。
+
+发布包只含 `lib/`、`client/`、`cordis.patch.yml`、`README.md`、`LICENSE`、
+`package.json` 共 6 个文件（约 25 kB）；`tools/`、`scripts/`、`.github/` 都不进包，
+第 4 道闸门会核对这份清单。
 
 ## 结构
 
 - `lib/index.js` — Host 半：注册 `/session-purge/{state,delete,undo}` 路由，执行删除
 - `client/client.js` — 浏览器半：会话行菜单注入 + 确认弹窗（React，无 JSX）
 - `cordis.patch.yml` — bundle 补丁，把插件行插入 profile 合成树
-- `tools/helpers.test.mjs` — 回归测试（快照取值 / 目录推导）
-- `tools/repro-delete.mjs` — 端到端验证脚本（真实后端 + 真实日志副本）
+- `scripts/publish-npm.mjs` — 发布流水线（六道闸门，默认只核查）
+- `tools/helpers.test.mjs` — 回归测试（快照取值 / 目录推导 / POSIX+Win32 双风格）
+- `tools/repro-delete.mjs` — 端到端验证脚本（真实后端 + 真实日志副本/自建夹具）
+- `tools/smoke-install.mjs` — 隔离 home 里装包冒烟（发布闸门 7）
+- `tools/probe-setup.ps1`、`tools/dialog-probe*.mjs` — 浏览器侧探针（Playwright）
 
 MIT License.
