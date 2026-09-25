@@ -20,8 +20,8 @@ jobs:
       - name: Pack
         run: |
           npm pack
-          mv dsh-session-delete-*.tgz dsh-session-delete.tgz
+          mv dsh-session-purge-*.tgz dsh-session-purge.tgz
       - name: Attach to release
         uses: softprops/action-gh-release@v2
         with:
-          files: dsh-session-delete.tgz
+          files: dsh-session-purge.tgz

@@ -1,3 +1,6 @@
 .DS_Store
 node_modules/
 *.tgz
+# throwaway DSH home used by the browser dialog probes
+.probe-home/
+tools/.*.json

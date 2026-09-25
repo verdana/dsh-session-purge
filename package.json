@@ -1,6 +1,6 @@
 {
-  "name": "dsh-session-delete",
-  "version": "0.3.1",
+  "name": "dsh-session-purge",
+  "version": "0.4.1",
   "description": "Adds a \"删除会话 / Delete session\" item to the session-row context menu (next to rename/fork/archive) — permanently removes session logs from disk, with live-session protection and a restart fallback queue.",
   "type": "module",
   "main": "lib/index.js",
@@ -30,12 +30,16 @@
     "README.md",
     "LICENSE"
   ],
+  "scripts": {
+    "test": "node --test tools/*.test.mjs"
+  },
   "keywords": [
     "deepseek",
     "harness",
     "dsh",
     "dsh-plugin",
     "session",
-    "delete"
+    "delete",
+    "purge"
   ]
 }

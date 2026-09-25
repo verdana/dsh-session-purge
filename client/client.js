@@ -1,4 +1,4 @@
-window.__ModuleLoader__.load({ id: "dsh-session-delete", factory: (require) => {
+window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 
 	var module = { exports: {} };
 	var exports = module.exports;
@@ -15,6 +15,7 @@ window.__ModuleLoader__.load({ id: "dsh-session-delete", factory: (require) => {
 			"dialog.cwd": "目录：{cwd}",
 			"dialog.queued": "该会话暂驻内存，已转为重启后删除。",
 			"dialog.locateFail": "无法定位该会话，请重试或刷新页面后再试。",
+			"dialog.done": "已删除会话「{name}」。",
 			"dialog.close": "知道了",
 			"row.locked": "该会话正在运行——请先停止或等它完成，再回来删除",
 			"row.delete": "删除",
@@ -23,11 +24,12 @@ window.__ModuleLoader__.load({ id: "dsh-session-delete", factory: (require) => {
 			"error.live": "会话正在运行——请先停止或等它完成，再删除",
 			"error.busy": "会话正在后台整理（压缩/收尾），请稍等几秒再试",
 			"error.held": "暂无法安全释放该会话，已转为重启后删除",
-			"error.unknown": "未找到该会话的记录",
-			"error.rm": "删除文件失败",
+			"error.unknown": "未找到该会话的记录（磁盘上可能已不存在）",
+			"error.rm": "删除文件失败（文件可能被占用，请稍后重试）",
+			"error.storage": "存储服务暂时不可用，请稍后重试",
 			"error.unavailable": "运行时缺少所需服务",
 			"error.invalid": "无效的会话标识",
-			"error.unsupported": "存储后端不支持该操作",
+			"error.unsupported": "存储后端不支持该操作，或无法确认会话目录",
 			"error.origin": "拒绝跨源请求",
 			"error.bad-request": "请求格式错误",
 			"error.internal": "内部错误",
@@ -40,6 +42,7 @@ window.__ModuleLoader__.load({ id: "dsh-session-delete", factory: (require) => {
 			"dialog.cwd": "Folder: {cwd}",
 			"dialog.queued": "This session stays resident in memory; it is queued for deletion on restart.",
 			"dialog.locateFail": "Could not locate this session — retry or reload the page.",
+			"dialog.done": "Deleted session “{name}”.",
 			"dialog.close": "Got it",
 			"row.locked": "This session is running — stop it (or let it finish) before deleting",
 			"row.delete": "Delete",
@@ -48,11 +51,12 @@ window.__ModuleLoader__.load({ id: "dsh-session-delete", factory: (require) => {
 			"error.live": "Session is running — stop it (or let it finish), then delete",
 			"error.busy": "Session is settling background work; retry in a few seconds",
 			"error.held": "Could not release this session safely; queued for deletion on restart",
-			"error.unknown": "Session record not found",
-			"error.rm": "Failed to remove files",
+			"error.unknown": "Session record not found (it may already be gone from disk)",
+			"error.rm": "Failed to remove files (they may be locked; retry shortly)",
+			"error.storage": "Session storage is temporarily unavailable; retry shortly",
 			"error.unavailable": "Required runtime service is missing",
 			"error.invalid": "Invalid session id",
-			"error.unsupported": "Storage backend does not support this operation",
+			"error.unsupported": "Storage backend does not support this operation, or the session directory could not be proven",
 			"error.origin": "Cross-origin request rejected",
 			"error.bad-request": "Malformed request",
 			"error.internal": "Internal error",
@@ -83,12 +87,12 @@ window.__ModuleLoader__.load({ id: "dsh-session-delete", factory: (require) => {
 	].join("\n");
 
 	function insertStyles() {
-		var tagId = "dsh-session-delete/panel.css";
+		var tagId = "dsh-session-purge/panel.css";
 		if (typeof document === "undefined") return function () {};
 		var existing = document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId) + "]");
 		if (existing !== null) return function () {};
 		var tag = document.createElement("style");
-		tag.dataset.plugin = "dsh-session-delete";
+		tag.dataset.plugin = "dsh-session-purge";
 		tag.dataset.pluginCss = tagId;
 		tag.textContent = CSS;
 		document.head.appendChild(tag);
@@ -260,8 +264,14 @@ window.__ModuleLoader__.load({ id: "dsh-session-delete", factory: (require) => {
 		btn.title = captured !== null && captured.running ? tr("row.locked") : "";
 
 		btn.addEventListener("click", function (e) {
-			e.stopPropagation();
 			e.preventDefault();
+			e.stopPropagation();
+			// Invariant: one delete action per click, even when a hot reload
+			// left an older copy of this module listening on its own clone.
+			// stopImmediatePropagation keeps this instance's dialog the only one.
+			e.stopImmediatePropagation();
+			if (btn.dataset.sdClaim === "1") return;
+			btn.dataset.sdClaim = "1";
 			closeUpstreamMenu();
 			var cap = pendingCapture.session;
 			openDeleteDialog(cap === null || cap === undefined
@@ -331,11 +341,20 @@ window.__ModuleLoader__.load({ id: "dsh-session-delete", factory: (require) => {
 
 	var dialogHost = null; // { container, root }
 
+	/**
+	 * Exactly one dialog host may exist, no matter how many plugin instances
+	 * are live (a hot reload can leave a previous copy of this module running).
+	 * Adopt an orphaned host left in the DOM, and drop any duplicates.
+	 */
 	function ensureDialogHost() {
-		if (dialogHost !== null) return dialogHost;
-		var container = document.createElement("div");
-		container.className = "sd-dlg-host";
-		document.body.appendChild(container);
+		var existing = document.querySelectorAll(".sd-dlg-host");
+		for (var i = 1; i < existing.length; i++) existing[i].remove();
+		if (dialogHost !== null && dialogHost.container.isConnected) return dialogHost;
+		var container = existing.length > 0 ? existing[0] : document.createElement("div");
+		if (existing.length === 0) {
+			container.className = "sd-dlg-host";
+			document.body.appendChild(container);
+		}
 		var root = ReactDOMClient.createRoot(container);
 		dialogHost = { container: container, root: root };
 		return dialogHost;
@@ -353,10 +372,14 @@ window.__ModuleLoader__.load({ id: "dsh-session-delete", factory: (require) => {
 	}
 
 	function disposeDialogHost() {
-		if (dialogHost === null) return;
-		try { dialogHost.root.unmount(); } catch (e) {}
-		dialogHost.container.remove();
-		dialogHost = null;
+		if (dialogHost !== null) {
+			try { dialogHost.root.unmount(); } catch (e) {}
+			dialogHost.container.remove();
+			dialogHost = null;
+		}
+		// Never leave a host behind for a successor instance to re-render into.
+		var leftovers = document.querySelectorAll(".sd-dlg-host");
+		for (var i = 0; i < leftovers.length; i++) leftovers[i].remove();
 	}
 
 	/** Two-step confirmation shown when the menu's delete item is chosen. */
@@ -372,6 +395,9 @@ window.__ModuleLoader__.load({ id: "dsh-session-delete", factory: (require) => {
 		var queuedState = React.useState(false);
 		var queued = queuedState[0];
 		var setQueued = queuedState[1];
+		var doneState = React.useState(null);
+		var done = doneState[0];
+		var setDone = doneState[1];
 
 		React.useEffect(function () {
 			function onKey(e) { if (e.key === "Escape" && !busy) onClose(); }
@@ -385,7 +411,7 @@ window.__ModuleLoader__.load({ id: "dsh-session-delete", factory: (require) => {
 		function onConfirm() {
 			setBusy(true);
 			setErr(null);
-			fetch("/session-delete/delete", {
+			fetch("/session-purge/delete", {
 				method: "POST",
 				headers: { "content-type": "application/json" },
 				body: JSON.stringify({ sessionId: target.id }),
@@ -396,7 +422,13 @@ window.__ModuleLoader__.load({ id: "dsh-session-delete", factory: (require) => {
 				setBusy(false);
 				if (res !== null && res !== undefined && res.ok === true) {
 					if (res.mode === "queued") { setQueued(true); return; }
-					onClose();
+					// Remember only the outcome: which session went away and that
+					// it worked. The host's name is a fallback for the DOM-capture
+					// path, which can only ever produce an id.
+					var deletedName = target.title ||
+						(typeof res.name === "string" && res.name !== "" ? res.name : null) ||
+						target.id;
+					setDone({ name: deletedName });
 					return;
 				}
 				var code = res && typeof res.code === "string" ? res.code : "fallback";
@@ -407,11 +439,17 @@ window.__ModuleLoader__.load({ id: "dsh-session-delete", factory: (require) => {
 			});
 		}
 
+		var name = target.title || target.id;
 		var body = [];
 		if (locateFail) {
 			body.push(React.createElement("div", { key: "t", className: "sd-dlg-text" }, tr("dialog.locateFail")));
+		} else if (done !== null) {
+			// Terminal state: report only which session went away and that it
+			// worked — no restated warning, no path dump.
+			body.push(React.createElement("div", { key: "d", className: "sd-dlg-text" },
+				tr("dialog.done", { name: done.name })));
 		} else {
-			body.push(React.createElement("div", { key: "t", className: "sd-dlg-text" }, tr("dialog.target", { name: target.title || target.id })));
+			body.push(React.createElement("div", { key: "t", className: "sd-dlg-text" }, tr("dialog.target", { name: name })));
 			if (target.cwd) {
 				body.push(React.createElement("div", { key: "c", className: "sd-dlg-cwd" }, tr("dialog.cwd", { cwd: baseName(target.cwd) || target.cwd })));
 			}
@@ -427,7 +465,7 @@ window.__ModuleLoader__.load({ id: "dsh-session-delete", factory: (require) => {
 		}
 
 		var actions = [];
-		if (queued || locateFail) {
+		if (queued || locateFail || done !== null) {
 			actions.push(React.createElement("button", {
 				key: "ok", type: "button", className: "sd-dlg-btn sd-dlg-btn-danger", onClick: onClose
 			}, tr("dialog.close")));
@@ -485,17 +523,17 @@ window.__ModuleLoader__.load({ id: "dsh-session-delete", factory: (require) => {
 	function apply(ctx) {
 		sessionsService = ctx.sessions;
 		localeService = ctx.get("locale") || null;
-		ctx.effect(insertStyles, "session-delete: styles");
+		ctx.effect(insertStyles, "session-purge: styles");
 		// Append "删除会话" to the session-row context menu (rename/fork/archive)
 		// via DOM-level injection — see the comment block above for why the
 		// shared Menu primitive cannot be wrapped (Object.freeze).
-		ctx.effect(installSessionMenuInjection, "session-delete: session menu injection");
+		ctx.effect(installSessionMenuInjection, "session-purge: session menu injection");
 		ctx.effect(function () {
 			return function () { disposeDialogHost(); };
-		}, "session-delete: dialog host");
+		}, "session-purge: dialog host");
 	}
 
-	exports.name = "session-delete";
+	exports.name = "session-purge";
 	exports.inject = inject;
 	exports.apply = apply;
 	return module.exports;
