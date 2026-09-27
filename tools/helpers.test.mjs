@@ -240,3 +240,189 @@ test('client dictionaries stay in sync (a missing key renders as the raw key)', 
         assert.ok(zh.includes(key), `dictionary is missing "${key}"`);
     }
 });
+
+// ── session-row menu detection across DSH generations ──────────────────────
+//
+// The menu is sniffed from the DOM because dsh-client-ui-workspace exposes no
+// extension point. These labels were captured from real renders:
+//   0.1.5-rc.3  the three built-in verbs, plain text, nothing else
+//   0.1.7-rc.2  置顶会话 prepended, every verb carrying a shortcut keycap, and
+//               plugin-registered rows appended after the built-in block
+// A regression here means the delete item is silently never injected — the
+// exact failure that made the plugin dead on 0.1.7.
+
+/** The pure helpers, read out of the REAL client module (never a mirror copy). */
+const clientSrc = readFileSync(fileURLToPath(new URL('../client/client.js', import.meta.url)), 'utf8');
+/** Resolve any plugin dependency to a stub — the helpers under test never call one. */
+const stubRequire = () => ({ createElement: () => null, useState: () => [null, () => {}], useEffect: () => {}, createRoot: () => ({}) });
+let clientModule = null;
+// The client half is a `window.__ModuleLoader__.load({...})` browser module, so
+// evaluate it the way the browser would and keep the loaded exports.
+new Function('window', 'require', clientSrc)(
+    { __ModuleLoader__: { load: (entry) => { clientModule = entry.factory(stubRequire) } } },
+    stubRequire,
+);
+const MENU = clientModule.__test;
+
+test('the client module exposes its menu helpers to this suite', () => {
+    assert.equal(typeof MENU.isSessionMenuDom, 'function');
+    assert.equal(typeof MENU.archiveIndex, 'function');
+    assert.equal(typeof MENU.nodeFromFiber, 'function');
+    assert.equal(MENU.SESSION_MENU_SEQUENCES.length, 2);
+});
+
+test('0.1.5 menu labels are detected and anchor the insert after archive', () => {
+    const labels = ['重命名', '分叉会话', '归档会话'];
+    assert.equal(labels.length, 3);
+    assert.equal(MENU.matchesSequence(labels), true);
+    assert.equal(MENU.archiveIndex(labels), 2);
+});
+
+test('0.1.5 English menu labels are detected', () => {
+    const labels = ['Rename', 'Fork session', 'Archive session'];
+    assert.equal(MENU.matchesSequence(labels), true);
+    assert.equal(MENU.archiveIndex(labels), 2);
+});
+
+test('0.1.7 menu labels (pin row + shortcut keycaps) are still detected', () => {
+    // Captured verbatim from a live 0.1.7-rc.2 render, before the aria-hidden
+    // shortcut spans are excluded.
+    const raw = ['置顶会话', '重命名Ctrl+Shift+R', '分叉会话Ctrl+Shift+F', '归档会话Ctrl+Alt+A'];
+    assert.equal(raw.length !== 3, true, 'precondition: the menu is no longer exactly three rows');
+    assert.equal(MENU.matchesSequence(raw), true, 'the subsequence match must tolerate extra rows and keycaps');
+    assert.equal(MENU.archiveIndex(raw), 3, 'the delete entry belongs right after archive');
+});
+
+test('0.1.7 English menu labels are still detected', () => {
+    const raw = ['Pin session', 'RenameCtrl+Shift+R', 'Fork sessionCtrl+Shift+F', 'Archive sessionCtrl+Alt+A'];
+    assert.equal(MENU.matchesSequence(raw), true);
+    assert.equal(MENU.archiveIndex(raw), 3);
+});
+
+test('plugin rows appended after the built-in block do not break detection', () => {
+    const raw = [
+        '置顶会话', '重命名Ctrl+Shift+R', '分叉会话Ctrl+Shift+F', '归档会话Ctrl+Alt+A',
+        'Export action', 'Last action',
+    ];
+    assert.equal(MENU.matchesSequence(raw), true);
+    // Archive is still the anchor, so the delete entry does not land below the
+    // separator that opens the plugin group.
+    assert.equal(MENU.archiveIndex(raw), 3);
+});
+
+test('an archived row anchors on the unarchive verb', () => {
+    assert.equal(MENU.archiveIndex(['取消归档Ctrl+Alt+A']), 0);
+    assert.equal(MENU.archiveIndex(['Unarchive session']), 0);
+});
+
+test('unrelated menus are refused, so no delete item is injected into them', () => {
+    // The workspace row menu (rename/delete-workspace) shares the rename verb.
+    assert.equal(MENU.matchesSequence(['重命名', '删除工作区']), false);
+    // The view-options menu.
+    assert.equal(MENU.matchesSequence(['隐藏已归档会话', '仅显示已归档会话']), false);
+    // A submenu or an empty menu.
+    assert.equal(MENU.matchesSequence([]), false);
+    assert.equal(MENU.matchesSequence(['重命名']), false);
+    // Order matters: archive before fork is not the built-in sequence.
+    assert.equal(MENU.matchesSequence(['归档会话', '分叉会话', '重命名']), false);
+    assert.equal(MENU.archiveIndex([]), -1);
+    assert.equal(MENU.archiveIndex(['重命名', '分叉会话']), -1);
+});
+
+test('the exact-three-item gate that broke 0.1.7 is gone from the source', () => {
+    assert.equal(/btns\.length !== 3/.test(clientSrc), false);
+});
+
+/**
+ * Minimal stand-ins for the two menu DOM shapes, used to drive the REAL
+ * `menuItemLabels` (not a copy of it):
+ *   ≤ 0.1.5  `<button role=menuitem><span>icon</span><span>label</span></button>`
+ *   0.1.7    the same plus `<span aria-hidden="true"><kbd>…</kbd></span>`
+ * In both, `div[role=menu] > div[role=presentation] > div.itemWrap > button`.
+ */
+function fakeElement({ text = '', ariaHidden = false, children = [], buttons = [] } = {}) {
+    return {
+        textContent: text,
+        children,
+        getAttribute: (name) => (name === 'aria-hidden' && ariaHidden ? 'true' : null),
+        querySelectorAll: (selector) => (selector === 'button[role=menuitem]' ? buttons : []),
+    };
+}
+function fakeMenu(rows) {
+    const buttons = rows.map((row) => fakeElement({
+        text: row.label + (row.keys ?? ''),
+        children: [
+            fakeElement({ text: row.icon ?? '' }),
+            fakeElement({ text: row.label }),
+            ...(row.keys === undefined ? [] : [fakeElement({ text: row.keys, ariaHidden: true })]),
+        ],
+    }));
+    return fakeElement({ buttons });
+}
+
+test('menuItemLabels reads the verb alone with a shortcut keycap present (0.1.7)', () => {
+    const menu = fakeMenu([
+        { label: '置顶会话' },
+        { label: '重命名', keys: 'Ctrl+Shift+R' },
+        { label: '分叉会话', keys: 'Ctrl+Shift+F' },
+        { label: '归档会话', keys: 'Ctrl+Alt+A' },
+    ]);
+    assert.deepEqual(MENU.menuItemLabels(menu), ['置顶会话', '重命名', '分叉会话', '归档会话']);
+    // That is the real 0.1.7 DOM, so detection and anchoring must both land.
+    assert.equal(MENU.isSessionMenuDom(menu), true);
+    assert.equal(MENU.archiveIndex(MENU.menuItemLabels(menu)), 3);
+});
+
+test('menuItemLabels reads plain labels unchanged (0.1.5)', () => {
+    const menu = fakeMenu([{ label: '重命名' }, { label: '分叉会话' }, { label: '归档会话' }]);
+    assert.deepEqual(MENU.menuItemLabels(menu), ['重命名', '分叉会话', '归档会话']);
+    assert.equal(MENU.isSessionMenuDom(menu), true);
+    assert.equal(MENU.archiveIndex(MENU.menuItemLabels(menu)), 2);
+});
+
+test('a menu without a shortcut keycap does not lose its labels', () => {
+    // The English 0.1.7 set, and a menu whose rows carry no keycap span at all.
+    const english = fakeMenu([
+        { label: 'Pin session' },
+        { label: 'Rename', keys: 'Ctrl+Shift+R' },
+        { label: 'Fork session', keys: 'Ctrl+Shift+F' },
+        { label: 'Archive session', keys: 'Ctrl+Alt+A' },
+    ]);
+    assert.equal(MENU.isSessionMenuDom(english), true);
+    assert.equal(MENU.archiveIndex(MENU.menuItemLabels(english)), 3);
+
+    const noKeycaps = fakeMenu([{ label: 'Rename' }, { label: 'Fork session' }, { label: 'Archive session' }]);
+    assert.deepEqual(MENU.menuItemLabels(noKeycaps), ['Rename', 'Fork session', 'Archive session']);
+    assert.equal(MENU.isSessionMenuDom(noKeycaps), true);
+});
+
+/**
+ * SessionNodeItem prop shapes, as both generations actually pass them:
+ *   0.1.5  node + onOpen/onRename/onFork/onArchive
+ *   0.1.7  node + onOpen/onRenameRequest only (verbs moved into a render slot)
+ * The fiber walk must identify the row in BOTH, or the delete dialog loses the
+ * session id and falls back to a title lookup.
+ */
+test('nodeFromFiber identifies the session row when verbs are props (0.1.5)', () => {
+    const node = { id: 'session-a', title: '问候交流', running: false, pinned: false, archived: false };
+    const fiber = { memoizedProps: { node, onOpen: () => {}, onRename: () => {}, onFork: () => {}, onArchive: () => {} }, return: null };
+    assert.equal(MENU.nodeFromFiber(fiber), node);
+});
+
+test('nodeFromFiber identifies the session row after the slot rewrite (0.1.7)', () => {
+    const node = { id: 'session-b', title: '问候交流', running: true, pinned: true, archived: false };
+    const fiber = { memoizedProps: { node, currentId: undefined, onOpen: () => {}, onRenameRequest: () => {} }, return: null };
+    assert.equal(MENU.nodeFromFiber(fiber), node);
+});
+
+test('nodeFromFiber walks up and refuses unrelated fibers', () => {
+    const node = { id: 'session-c', title: 'x', running: false };
+    const row = { memoizedProps: { node, onOpen: () => {} }, return: null };
+    const leaf = { memoizedProps: { className: 'title' }, return: row };
+    assert.equal(MENU.nodeFromFiber(leaf), node);
+    // An object that merely carries an `id` is not a SessionNode.
+    assert.equal(MENU.nodeFromFiber({ memoizedProps: { node: { id: 'session-d' }, onOpen: () => {} }, return: null }), null);
+    assert.equal(MENU.nodeFromFiber(null), null);
+});
+
+

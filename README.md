@@ -60,13 +60,31 @@ dsh plugin --profile web remove dsh-session-purge
 
 ## 环境要求
 
-- DSH（`dsh web` 能正常运行）
+- DSH（`dsh web` 能正常运行）。**0.1.5-rc.3 与 0.1.7-rc.2 都支持**——上游在 0.1.7 里
+  改了会话行菜单（新增「置顶会话」、动作右边多出快捷键键帽、并把重命名/分叉/归档
+  搬进了 slot 注册表），插件对两种菜单形状都能识别。
 - 插件本身零依赖、零编译，Windows / Linux / macOS 同一份代码；测试覆盖三平台（CI 矩阵）
+
+## 兼容性
+
+Host 半只用两代都有的稳定面：`sessionPersistence.list()` + 后端的 `locate()`、
+`workspaceRegistry`、`agents`/`sessions`/`jobs` 注册表。浏览器半靠 DOM 嗅探会话行菜单
+（上游未提供可用扩展点），因此对菜单形状的假设是唯一需要随版本走的：
+
+| | 0.1.5-rc.3 | 0.1.7-rc.2 |
+|---|---|---|
+| 菜单项 | 重命名 / 分叉会话 / 归档会话 | 置顶会话 + 上面三项，后面可能还有插件行 |
+| 按钮文本 | 纯标签 | 标签 + 快捷键键帽（`aria-hidden` 的 `<span>`） |
+| 行组件 props | `onFork` / `onArchive` | 已移除，动作改走 slot |
+
+插件按「内置三项作为有序子序列」识别菜单（不再要求恰好三项），
+按 `aria-hidden` 过滤掉键帽，并把「删除会话」插在「归档会话」之后，
+所以额外的置顶行和插件行都不会影响它。
 
 ## 开发
 
 ```sh
-npm test                       # 回归测试（快照取值 / 路径推导 / 字典一致性）
+npm test                       # 回归测试（快照取值 / 路径推导 / 菜单识别 / 字典一致性）
 node tools/repro-delete.mjs    # 端到端：真实 JSONL 后端 + 真实日志副本跑完整删除链路
 node tools/smoke-install.mjs ./dsh-session-purge.tgz   # 隔离 home 里装包冒烟
 

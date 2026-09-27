@@ -106,14 +106,21 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 	}
 
 	// ── session identification helpers ───────────────────────────────────────
-	// The upstream session-row menu (重命名 / 分叉会话 / 归档会话) is hardcoded
-	// inside dsh-client-ui-workspace with no extension slot, and the shared
-	// primitives seed module is Object.freeze'd — a module-level monkey patch
-	// is impossible (the assignment silently no-ops). So we work at the DOM
-	// level: a capture-phase click listener resolves which session's ⋯ button
-	// was pressed (React fiber walk with an aria-label fallback), and a
-	// MutationObserver appends the delete item right after the menu portal
-	// mounts it.
+	// The upstream session-row menu is built inside dsh-client-ui-workspace and
+	// exposes no extension point this plugin can reach, so we work at the DOM
+	// level: a capture-phase click listener resolves which session's ⋯ button was
+	// pressed (React fiber walk with an aria-label fallback), and a
+	// MutationObserver adds the delete item once the menu portal mounts it.
+	//
+	// Two upstream generations must both work (tools/helpers.test.mjs pins the
+	// captured label sets):
+	//   ≤ 0.1.5  the menu renders exactly 重命名 / 分叉会话 / 归档会话, plain labels
+	//   0.1.7+   it renders 置顶会话 / 重命名 / 分叉会话 / 归档会话, every verb
+	//            carrying a keyboard-shortcut keycap that joins the button's
+	//            textContent, and plugin-registered rows may follow that block.
+	// So detection matches the three built-in verbs as an ordered subsequence
+	// (instead of an exact three-item list) and the new row is anchored right
+	// after the archive row, keeping it inside the built-in block.
 
 	/** React instance key on a DOM node ("__reactFiber$<random>"), any React 17+. */
 	function fiberOf(el) {
@@ -125,7 +132,17 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 		return null;
 	}
 
-	/** Walk up the fiber chain to the SessionNodeItem component fiber, read `node`. */
+	/**
+	 * Walk up the fiber chain to the SessionNodeItem component fiber, read `node`.
+	 *
+	 * 0.1.5 took the session verbs as props (`onFork`/`onArchive`/`onRename`);
+	 * 0.1.7 replaced them with the `sidebar.workspaces.session.menu.item` slot,
+	 * so no `onFork`/`onArchive` exists any more. The stable signature in both is
+	 * a `node` carrying the SessionNode `{ id, title, running }` triple, which is
+	 * also what the caller needs — so match on that, plus the row-level
+	 * `onOpen`/`onRename*` props that distinguish SessionNodeItem from any other
+	 * component that might receive an object with an `id`.
+	 */
 	function nodeFromFiber(fiber) {
 		var f = fiber;
 		var depth = 0;
@@ -134,7 +151,10 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 			if (mp !== null && typeof mp === "object" &&
 				mp.node !== null && typeof mp.node === "object" &&
 				typeof mp.node.id === "string" && typeof mp.node.running === "boolean" &&
-				typeof mp.onFork === "function" && typeof mp.onArchive === "function") {
+				mp.node.title !== undefined &&
+				(typeof mp.onOpen === "function" || typeof mp.onRename === "function" ||
+					typeof mp.onRenameRequest === "function" ||
+					typeof mp.onFork === "function" || typeof mp.onArchive === "function")) {
 				return mp.node;
 			}
 			f = f.return;
@@ -143,7 +163,11 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 		return null;
 	}
 
-	/** Sessions store lookup by display title (fallback path). */
+	/**
+	 * Sessions-store lookup by display title (fallback when the fiber walk and
+	 * the row's own `node` are both unavailable, e.g. a WebKit browser that
+	 * exposes no React internals).
+	 */
 	function sessionByTitle(title) {
 		try {
 			var snap = sessionsService && sessionsService.list ? sessionsService.list.getSnapshot() : null;
@@ -195,28 +219,100 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 
 	// ── DOM injection into the session-row menu ──────────────────────────────
 
-	/** Expected upstream menu label sequences (rename/fork/archive), any locale. */
-	function sessionMenuLabelSequences() {
-		return [
-			["重命名", "分叉会话", "归档会话"],
-			["Rename", "Fork session", "Archive session"]
-		];
+	/** The built-in session-row verbs, in render order, per locale. */
+	var SESSION_MENU_SEQUENCES = [
+		["重命名", "分叉会话", "归档会话"],
+		["Rename", "Fork session", "Archive session"]
+	];
+
+	/** The archive verb, which anchors where the delete entry is inserted. */
+	var ARCHIVE_LABELS = ["归档会话", "Archive session"];
+	var UNARCHIVE_LABELS = ["取消归档", "Unarchive session"];
+
+	/**
+	 * Read the menu item labels of one `div[role=menu]`.
+	 *
+	 * 0.1.7 renders each action's keyboard shortcut as a separate
+	 * `aria-hidden="true"` keycap span INSIDE the menuitem button, so
+	 * `button.textContent` yields `"重命名Ctrl+Shift+R"`. Excluding aria-hidden
+	 * subtrees yields the localized verb alone; the version tolerance in
+	 * {@link matchesSequence} covers a generation that drops that marker.
+	 * @param menuEl - the candidate `div[role=menu]`.
+	 * @returns one trimmed label per menuitem button, in DOM order.
+	 */
+	function menuItemLabels(menuEl) {
+		var btns = menuEl.querySelectorAll("button[role=menuitem]");
+		var out = [];
+		for (var i = 0; i < btns.length; i++) {
+			var parts = [];
+			var kids = btns[i].children || [];
+			for (var j = 0; j < kids.length; j++) {
+				if (kids[j].getAttribute && kids[j].getAttribute("aria-hidden") === "true") continue;
+				parts.push(kids[j].textContent || "");
+			}
+			// A label that is not wrapped in spans (or a button with no children)
+			// still reads correctly from the whole button.
+			var text = parts.join("").trim() || (btns[i].textContent || "").trim();
+			out.push(text);
+		}
+		return out;
 	}
 
-	/** Does this div[role=menu] carry exactly the rename/fork/archive sequence? */
-	function isSessionMenuDom(menuEl) {
-		var btns = menuEl.querySelectorAll("button[role=menuitem]");
-		if (btns.length !== 3) return false;
-		var seqs = sessionMenuLabelSequences();
-		for (var s = 0; s < seqs.length; s++) {
-			var seq = seqs[s];
-			var ok = true;
-			for (var i = 0; i < 3; i++) {
-				if ((btns[i].textContent || "").trim() !== seq[i]) { ok = false; break; }
+	/**
+	 * Do these labels carry one built-in verb sequence, in order?
+	 * Extra entries (the 0.1.7 pin row before it, plugin rows after it) are
+	 * allowed; a label may also carry a trailing shortcut keycap.
+	 * @param labels - labels from {@link menuItemLabels}.
+	 * @returns true when a known sequence appears as an ordered subsequence.
+	 */
+	function matchesSequence(labels) {
+		for (var s = 0; s < SESSION_MENU_SEQUENCES.length; s++) {
+			var seq = SESSION_MENU_SEQUENCES[s];
+			var at = 0;
+			for (var i = 0; i < labels.length && at < seq.length; i++) {
+				if (labelIs(labels[i], seq[at])) at++;
 			}
-			if (ok) return true;
+			if (at === seq.length) return true;
 		}
 		return false;
+	}
+
+	/** Is this label the given verb, tolerating a trailing shortcut keycap? */
+	function labelIs(label, verb) {
+		if (label === verb) return true;
+		return label.length > verb.length && label.slice(0, verb.length) === verb;
+	}
+
+	/**
+	 * Does this div[role=menu] carry the built-in session verbs?
+	 * @param menuEl - the candidate `div[role=menu]`.
+	 * @returns true when the menu is a session-row action menu.
+	 */
+	function isSessionMenuDom(menuEl) {
+		return matchesSequence(menuItemLabels(menuEl));
+	}
+
+	/**
+	 * Index of the archive row, whose wrapper the delete entry is cloned from
+	 * and inserted after. Reading the labels (rather than assuming the archive
+	 * row is last) keeps the insert inside the built-in block once 0.1.7 appends
+	 * plugin-registered rows behind it.
+	 * @param labels - labels from {@link menuItemLabels}.
+	 * @returns the archive row's index, or -1.
+	 */
+	function archiveIndex(labels) {
+		for (var i = 0; i < labels.length; i++) {
+			for (var a = 0; a < ARCHIVE_LABELS.length; a++) {
+				if (labelIs(labels[i], ARCHIVE_LABELS[a])) return i;
+			}
+		}
+		// An archived (not-yet-restored) row shows 取消归档 instead.
+		for (var j = 0; j < labels.length; j++) {
+			for (var u = 0; u < UNARCHIVE_LABELS.length; u++) {
+				if (labelIs(labels[j], UNARCHIVE_LABELS[u])) return j;
+			}
+		}
+		return -1;
 	}
 
 	/** Close the upstream menu the same way its own Escape handler does. */
@@ -227,16 +323,17 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 	}
 
 	/**
-	 * Append the delete item to an open session menu by cloning the last item
-	 * wrapper (归档会话) — inherits the exact upstream classes — then swapping
-	 * icon + label and tinting it danger red.
+	 * Append the delete item to an open session menu by cloning the archive item
+	 * wrapper — inherits the exact upstream classes — then swapping icon + label
+	 * and tinting it danger red. Inserted immediately after the archive row.
 	 */
 	function injectMenuItem(menuEl) {
 		var btns = menuEl.querySelectorAll("button[role=menuitem]");
-		var lastBtn = btns[btns.length - 1];
-		if (lastBtn === undefined) return;
-		var wrap = lastBtn.parentElement;
-		if (wrap === null) return;
+		var index = archiveIndex(menuItemLabels(menuEl));
+		if (index < 0 || index >= btns.length) return;
+		var sourceBtn = btns[index];
+		var wrap = sourceBtn.parentElement;
+		if (wrap === null || wrap.parentElement === null) return;
 		var clone = wrap.cloneNode(true);
 		clone.setAttribute("data-sd-menu-item", "1");
 		var btn = clone.querySelector("button[role=menuitem]");
@@ -256,8 +353,16 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 				labelDone = true;
 			}
 		}
+		// Drop the inherited shortcut keycap (0.1.7 renders
+		// `<span aria-hidden="true">` with the archive keys inside the button).
+		// Delete has no binding of its own, and a `Ctrl+Alt+A` keycap on this row
+		// would advertise the archive shortcut.
+		var keycaps = clone.querySelectorAll('[aria-hidden="true"]');
+		for (var c = 0; c < keycaps.length; c++) keycaps[c].remove();
+
 		btn.removeAttribute("aria-haspopup");
 		btn.removeAttribute("aria-expanded");
+		btn.removeAttribute("aria-keyshortcuts");
 		btn.style.color = "var(--dsw-alias-state-error-primary, #ff8080)";
 
 		var captured = pendingCapture.session;
@@ -279,8 +384,11 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 				: { id: cap.id, title: cap.title, running: cap.running, cwd: cap.cwd });
 		});
 
-		var viewport = wrap.parentElement;
-		if (viewport !== null) viewport.appendChild(clone);
+		// Insert immediately after the archive row: 0.1.7 appends
+		// plugin-registered rows (and a separator group) behind the built-in
+		// block, so appending to the viewport would strand the delete entry at
+		// the very bottom instead of next to its sibling verbs.
+		wrap.parentElement.insertBefore(clone, wrap.nextSibling);
 	}
 
 	/** Document-level wiring: click capture + menu mount observer. */
@@ -536,5 +644,18 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 	exports.name = "session-purge";
 	exports.inject = inject;
 	exports.apply = apply;
+	// @internal Regression-test surface for the pure menu-detection helpers (see
+	// tools/helpers.test.mjs). Not plugin API: the host loader only reads
+	// name/inject/apply, and these functions are pure over label arrays.
+	exports.__test = {
+		SESSION_MENU_SEQUENCES: SESSION_MENU_SEQUENCES,
+		menuItemLabels: menuItemLabels,
+		matchesSequence: matchesSequence,
+		labelIs: labelIs,
+		isSessionMenuDom: isSessionMenuDom,
+		archiveIndex: archiveIndex,
+		nodeFromFiber: nodeFromFiber,
+		fiberOf: fiberOf
+	};
 	return module.exports;
 }});
