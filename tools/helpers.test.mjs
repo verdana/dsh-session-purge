@@ -31,6 +31,14 @@ console.log(`# host: node ${process.version} on ${process.platform} — path fla
 // The suite intentionally drives refusal paths; show their diagnostics.
 process.env.DSH_PURGE_DEBUG = '1';
 
+/**
+ * The browser half's source, read once. Several suites below assert on it
+ * directly: the client module is a `window.__ModuleLoader__.load({...})` browser
+ * bundle, so there is nothing to import — it is either evaluated (menu helpers)
+ * or inspected (dictionary keys, dialog variant classes).
+ */
+const clientSrc = readFileSync(fileURLToPath(new URL('../client/client.js', import.meta.url)), 'utf8');
+
 test('snapshotSessionId reads the id from the snapshot header', () => {
     // Exact shape returned by @deepseek-ai/dsh-session-persistence-jsonl.
     const snapshot = {
@@ -226,8 +234,7 @@ test('a real session root layout maps to the session directory, not its parent',
 });
 
 test('client dictionaries stay in sync (a missing key renders as the raw key)', () => {
-    const clientPath = fileURLToPath(new URL('../client/client.js', import.meta.url));
-    const src = readFileSync(clientPath, 'utf8');
+    const src = clientSrc;
     const section = (name) => src.match(new RegExp(`${name}: \\{([\\s\\S]*?)\\n\\t\\t\\},`))[1];
     const keysOf = (text) => [...text.matchAll(/"([^"]+)":/g)].map((m) => m[1]).sort();
 
@@ -239,6 +246,45 @@ test('client dictionaries stay in sync (a missing key renders as the raw key)', 
         if (key === 'error.') continue;
         assert.ok(zh.includes(key), `dictionary is missing "${key}"`);
     }
+    // Keys chosen through a ternary are invisible to that scan: the dialog title
+    // picks its key from the outcome, so name the success one explicitly.
+    for (const key of [...src.matchAll(/"?([a-z][\w.]*\.[a-z][\w]*)"?\s*:\s*"([a-z][\w.]*\.[a-z][\w]*)"/gu)].map((m) => m[1])) {
+        assert.ok(zh.includes(key), `a ternary picks "${key}" but the dictionary has no such key`);
+    }
+});
+
+// ── terminal dialog semantics ──────────────────────────────────────────────
+//
+// The dialog serves two moments: "confirm this irreversible delete" (danger)
+// and "it is done" (success). They must not look alike, or the report reads as
+// another warning.
+
+/** The dialog's JSX-ish render body, which is where the variant classes are chosen. */
+const dialogRender = clientSrc.slice(clientSrc.indexOf('var succeeded ='), clientSrc.indexOf('// ── module state bound in apply()'));
+
+test('a completed delete switches the dialog to its success variant', () => {
+    assert.match(dialogRender, /succeeded\s*=\s*done !== null/u);
+    assert.match(dialogRender, /succeeded \? "sd-dlg sd-dlg-success" : "sd-dlg"/u);
+    assert.match(dialogRender, /succeeded \? "sd-dlg-btn sd-dlg-btn-success" : "sd-dlg-btn sd-dlg-btn-danger"/u);
+});
+
+test('the success variant is green and the danger variant stays red', () => {
+    assert.match(clientSrc, /\.sd-dlg-btn-success\{background:var\(--dsw-alias-state-success-primary/u);
+    assert.match(clientSrc, /\.sd-dlg-success \.sd-dlg-title \.sd-icon\{color:var\(--dsw-alias-state-success-primary/u);
+    // The confirmation keeps the destructive colour.
+    assert.match(clientSrc, /\.sd-dlg-btn-danger\{background:var\(--dsw-alias-state-error-primary/u);
+    // The two variants must not share a colour: that was the reported bug.
+    const green = clientSrc.slice(clientSrc.indexOf('.sd-dlg-btn-success'), clientSrc.indexOf('.sd-dlg-btn-success') + 160);
+    assert.equal(green.includes('state-error-primary'), false, 'the success button went back to red');
+});
+
+test('the success heading uses the tick icon and its own title key', () => {
+    assert.match(dialogRender, /__html: succeeded \? OK_ICON : ICON/u);
+    assert.match(dialogRender, /titleKey = succeeded \? "dialog\.doneTitle" : "dialog\.title"/u);
+    // OK_ICON must be a distinct drawing, not a recoloured bin.
+    const ok = clientSrc.match(/var OK_ICON = '([^']+)'/u);
+    assert.notEqual(ok, null);
+    assert.equal(ok[1].includes('M2.5 4.2h11'), false, 'OK_ICON still draws the bin');
 });
 
 // ── session-row menu detection across DSH generations ──────────────────────
@@ -252,7 +298,6 @@ test('client dictionaries stay in sync (a missing key renders as the raw key)', 
 // exact failure that made the plugin dead on 0.1.7.
 
 /** The pure helpers, read out of the REAL client module (never a mirror copy). */
-const clientSrc = readFileSync(fileURLToPath(new URL('../client/client.js', import.meta.url)), 'utf8');
 /** Resolve any plugin dependency to a stub — the helpers under test never call one. */
 const stubRequire = () => ({ createElement: () => null, useState: () => [null, () => {}], useEffect: () => {}, createRoot: () => ({}) });
 let clientModule = null;

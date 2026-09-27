@@ -16,6 +16,7 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 			"dialog.queued": "该会话暂驻内存，已转为重启后删除。",
 			"dialog.locateFail": "无法定位该会话，请重试或刷新页面后再试。",
 			"dialog.done": "已删除会话「{name}」。",
+			"dialog.doneTitle": "删除成功",
 			"dialog.close": "知道了",
 			"row.locked": "该会话正在运行——请先停止或等它完成，再回来删除",
 			"row.delete": "删除",
@@ -43,6 +44,7 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 			"dialog.queued": "This session stays resident in memory; it is queued for deletion on restart.",
 			"dialog.locateFail": "Could not locate this session — retry or reload the page.",
 			"dialog.done": "Deleted session “{name}”.",
+			"dialog.doneTitle": "Deleted",
 			"dialog.close": "Got it",
 			"row.locked": "This session is running — stop it (or let it finish) before deleting",
 			"row.delete": "Delete",
@@ -65,6 +67,8 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 	};
 
 	var ICON = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4.2h11"/><path d="M6.4 4.2V3c0-.44.36-.8.8-.8h1.6c.44 0 .8.36.8.8v1.2"/><path d="M4 4.2l.55 8.9c.03.5.45.9.96.9h4.98c.5 0 .93-.4.96-.9L12 4.2"/><path d="M6.6 7v4.4M9.4 7v4.4"/></svg>';
+	/** Same slot, same weight: a tick for the terminal "it worked" state. */
+	var OK_ICON = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3.2 8.6l3.1 3.1 6.5-7.3"/></svg>';
 
 	var CSS = [
 		".sd-icon{display:inline-flex;align-items:center;flex:none}",
@@ -83,7 +87,13 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 		".sd-dlg-btn:hover{color:var(--dsw-alias-label-primary,#e8ecff);border-color:var(--dsh-alias-label-secondary,#8a93a6)}",
 		".sd-dlg-btn:disabled{opacity:.55;cursor:default}",
 		".sd-dlg-btn-danger{background:var(--dsw-alias-state-error-primary,#e5484d);border-color:transparent;color:#fff;font-weight:600}",
-		".sd-dlg-btn-danger:hover{color:#fff;filter:brightness(1.08)}"
+		".sd-dlg-btn-danger:hover{color:#fff;filter:brightness(1.08)}",
+		// The dialog reports the outcome too, and a completed deletion is a
+		// success: the same affirmative button turns green instead of staying
+		// danger-red once there is nothing left to be careful about.
+		".sd-dlg-success .sd-dlg-title .sd-icon{color:var(--dsw-alias-state-success-primary,#22c55e)}",
+		".sd-dlg-btn-success{background:var(--dsw-alias-state-success-primary,#22c55e);border-color:transparent;color:#fff;font-weight:600}",
+		".sd-dlg-btn-success:hover{color:#fff;filter:brightness(1.08)}"
 	].join("\n");
 
 	function insertStyles() {
@@ -548,6 +558,11 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 		}
 
 		var name = target.title || target.id;
+		// A confirmed deletion is the one terminal state that reports success;
+		// every other terminal state (nothing located, queued for a restart,
+		// an error line) still describes an operation the user should treat
+		// with the same care as the confirmation, so it keeps the danger look.
+		var succeeded = done !== null;
 		var body = [];
 		if (locateFail) {
 			body.push(React.createElement("div", { key: "t", className: "sd-dlg-text" }, tr("dialog.locateFail")));
@@ -575,7 +590,9 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 		var actions = [];
 		if (queued || locateFail || done !== null) {
 			actions.push(React.createElement("button", {
-				key: "ok", type: "button", className: "sd-dlg-btn sd-dlg-btn-danger", onClick: onClose
+				key: "ok", type: "button",
+				className: succeeded ? "sd-dlg-btn sd-dlg-btn-success" : "sd-dlg-btn sd-dlg-btn-danger",
+				onClick: onClose
 			}, tr("dialog.close")));
 		} else {
 			actions.push(React.createElement("button", {
@@ -587,12 +604,23 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 			}, busy ? tr("row.deleting") : tr("row.delete")));
 		}
 
+		// The dialog heading follows the outcome: the tick + success colour on a
+		// completed delete, the bin + danger colour everywhere else.
+		var titleKey = succeeded ? "dialog.doneTitle" : "dialog.title";
 		return React.createElement("div", null, [
 			React.createElement("div", { key: "b", className: "sd-dlg-backdrop", onClick: function () { if (!busy) onClose(); } }),
-			React.createElement("div", { key: "d", className: "sd-dlg", role: "alertdialog", "aria-label": tr("dialog.title") }, [
+			React.createElement("div", {
+				key: "d",
+				className: succeeded ? "sd-dlg sd-dlg-success" : "sd-dlg",
+				role: "alertdialog",
+				"aria-label": tr(titleKey)
+			}, [
 				React.createElement("div", { key: "t", className: "sd-dlg-title" }, [
-					React.createElement("span", { key: "i", className: "sd-icon", dangerouslySetInnerHTML: { __html: ICON } }),
-					React.createElement("span", { key: "l" }, tr("dialog.title"))
+					React.createElement("span", {
+						key: "i", className: "sd-icon",
+						dangerouslySetInnerHTML: { __html: succeeded ? OK_ICON : ICON }
+					}),
+					React.createElement("span", { key: "l" }, tr(titleKey))
 				]),
 				body,
 				React.createElement("div", { key: "a", className: "sd-dlg-actions" }, actions)
@@ -645,8 +673,9 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 	exports.inject = inject;
 	exports.apply = apply;
 	// @internal Regression-test surface for the pure menu-detection helpers (see
-	// tools/helpers.test.mjs). Not plugin API: the host loader only reads
-	// name/inject/apply, and these functions are pure over label arrays.
+	// tools/helpers.test.mjs) and for rendering the dialog under real React
+	// (tools/_probe-dialog.mjs). Not plugin API: the host loader only reads
+	// name/inject/apply, and nothing here runs until a caller invokes it.
 	exports.__test = {
 		SESSION_MENU_SEQUENCES: SESSION_MENU_SEQUENCES,
 		menuItemLabels: menuItemLabels,
@@ -655,7 +684,8 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 		isSessionMenuDom: isSessionMenuDom,
 		archiveIndex: archiveIndex,
 		nodeFromFiber: nodeFromFiber,
-		fiberOf: fiberOf
+		fiberOf: fiberOf,
+		DeleteConfirmDialog: DeleteConfirmDialog
 	};
 	return module.exports;
 }});

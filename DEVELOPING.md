@@ -26,13 +26,16 @@ dsh plugin --profile web add link:<本仓库绝对路径>
 npm test                       # 回归测试（快照取值 / 路径推导 / 菜单识别 / 字典一致性）
 node tools/repro-delete.mjs    # 端到端：真实 JSONL 后端 + 真实日志副本跑完整删除链路
 node tools/smoke-install.mjs ./dsh-session-purge.tgz   # 隔离 home 里装包冒烟
+node tools/dialog-render-probe.mjs   # 用真实 React + 真实主题渲染确认/成功两种弹窗，核对配色
 ```
 
-上面几条都不会碰你的 `~/.dsh`（都用临时 `DSH_HOME`）。
+上面几条都不会碰你的 `~/.dsh`（都用临时 `DSH_HOME`）。最后一条需要 DSH 源码树
+（取 React 与主题 CSS），不需要起服务；源码树不在默认位置时用 `DSH_REPO` 指定。
 
 `tools/helpers.test.mjs` 里的菜单识别用例钉住的是从真实渲染里抓下来的标签集合，
 两代各一份；**改 `client/client.js` 的菜单识别逻辑时，这两组 fixture 必须一起更新**，
-否则测试会在真实上游变化时给出假绿。
+否则测试会在真实上游变化时给出假绿。同理，**改弹窗配色或变体类名时跑一遍
+`dialog-render-probe.mjs`** —— 静态断言看不出 `var()` 到底解析成了什么颜色。
 
 ## 发布
 
