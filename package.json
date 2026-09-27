@@ -1,6 +1,6 @@
 {
   "name": "dsh-session-purge",
-  "version": "0.4.3",
+  "version": "0.4.4",
   "description": "Adds a \"删除会话 / Delete session\" item to the session-row context menu (next to rename/fork/archive) — permanently removes session logs from disk, with live-session protection and a restart fallback queue.",
   "type": "module",
   "main": "lib/index.js",
