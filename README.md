@@ -1,5 +1,7 @@
 # dsh-session-purge
 
+[中文](./README.md) | [English](https://github.com/verdana/dsh-session-purge/blob/main/README.en.md)
+
 给 DeepSeek Harness (DSH) 的会话行菜单加上**删除会话**，和「重命名 / 分叉会话 /
 归档会话」并列。
 
@@ -70,6 +72,7 @@ dsh plugin --profile web remove dsh-session-purge
 
 ## 开发
 
-开发、测试与发布流程见 [DEVELOPING.md](./DEVELOPING.md)。
+开发、测试与发布流程见
+[DEVELOPING.md](https://github.com/verdana/dsh-session-purge/blob/main/DEVELOPING.md)。
 
 MIT License.
