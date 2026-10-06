@@ -61,13 +61,15 @@ dsh plugin --profile web remove dsh-session-purge
   curl http://127.0.0.1:<端口>/session-purge/state
   ```
 
-  它列出持久层当前认识的会话（id / 标题 / 大小 / 是否在内存 / 是否已归档），
+  它列出持久层当前认识的会话（id / 大小 / 是否在内存 / 是否已归档），
   以及 `held`（在内存里）和 `pending`（排队重启后删除）。
+  注意 `title` **恒为 null**：会话标题是持久层里的**事件**，不在会话元数据中，
+  这个接口拿不到；界面上显示的标题是插件从侧边栏行上读的。
 - 详细日志：启动 `dsh web` 时带上 `DSH_PURGE_DEBUG=1`。
 
 ## 环境要求
 
-- DSH，`dsh web` 能正常运行。**0.1.5-rc.3 和 0.1.7-rc.2 都已验证支持。**
+- DSH，`dsh web` 能正常运行。**0.1.5-rc.3、0.1.7-rc.2、0.2.0-rc.2 都已验证支持。**
 - 零依赖、零编译，Windows / Linux / macOS 同一份代码。
 
 ## 开发

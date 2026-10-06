@@ -71,14 +71,18 @@ The row disappears from the sidebar immediately — no manual refresh.
   curl http://127.0.0.1:<port>/session-purge/state
   ```
 
-  It lists the sessions the persistence layer currently knows about (id / title /
-  size / whether it is in memory / whether it is archived), plus `held` (in
-  memory) and `pending` (queued for deletion on restart).
+  It lists the sessions the persistence layer currently knows about (id / size /
+  whether it is in memory / whether it is archived), plus `held` (in memory) and
+  `pending` (queued for deletion on restart). Note that `title` is **always
+  null**: a session title is an *event* in the log, not part of the session
+  metadata, so this endpoint cannot see one. The title shown in the UI is read
+  off the sidebar row by the plugin.
 - Verbose logs: start `dsh web` with `DSH_PURGE_DEBUG=1`.
 
 ## Requirements
 
-- DSH, with a working `dsh web`. **Verified against 0.1.5-rc.3 and 0.1.7-rc.2.**
+- DSH, with a working `dsh web`. **Verified against 0.1.5-rc.3, 0.1.7-rc.2 and
+  0.2.0-rc.2.**
 - Zero dependencies, no build step, one codebase for Windows / Linux / macOS.
 
 ## Development
