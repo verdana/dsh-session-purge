@@ -629,15 +629,34 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 	}
 
 	// ── module state bound in apply() ────────────────────────────────────────
+	var ctxRef = null;
 	var sessionsService = null;
-	var localeService = null;
 	var pendingCapture = { session: null };
+
+	/**
+	 * The live locale service, resolved on every call rather than captured once
+	 * in apply(). Two reasons: the client entry graph does not guarantee the
+	 * locale row is active before this plugin's fiber (so an early mount would
+	 * otherwise fall back to Chinese forever), and a plain lookup each time also
+	 * follows a service the runtime replaced. `ctx.get()` is a property read,
+	 * so there is nothing to cache.
+	 * @returns the locale service, or null when it is absent or unreadable.
+	 */
+	function liveLocale() {
+		try {
+			if (ctxRef !== null && typeof ctxRef.get === "function") {
+				return ctxRef.get("locale") || null;
+			}
+		} catch (e) {}
+		return null;
+	}
 
 	function tr(key, params) {
 		var lid = "zh";
 		try {
-			if (localeService !== null && typeof localeService.getLocale === "function") {
-				var snap = localeService.getLocale();
+			var locale = liveLocale();
+			if (locale !== null && typeof locale.getLocale === "function") {
+				var snap = locale.getLocale();
 				if (snap !== undefined && snap !== null && snap.active === "en") lid = "en";
 			}
 		} catch (e) {}
@@ -657,8 +676,8 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 	var inject = ["sessions"];
 
 	function apply(ctx) {
+		ctxRef = ctx;
 		sessionsService = ctx.sessions;
-		localeService = ctx.get("locale") || null;
 		ctx.effect(insertStyles, "session-purge: styles");
 		// Append "删除会话" to the session-row context menu (rename/fork/archive)
 		// via DOM-level injection — see the comment block above for why the
@@ -676,6 +695,15 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 	// tools/helpers.test.mjs) and for rendering the dialog under real React
 	// (tools/_probe-dialog.mjs). Not plugin API: the host loader only reads
 	// name/inject/apply, and nothing here runs until a caller invokes it.
+	/**
+	 * Bind the context `tr()` reads the locale through, without a real component
+	 * tree or `apply()`'s DOM side effects. Used by the regression suite in
+	 * tools/helpers.test.mjs; not plugin API.
+	 */
+	exports.__testMountLocale = function (ctx) {
+		ctxRef = ctx;
+	};
+
 	exports.__test = {
 		SESSION_MENU_SEQUENCES: SESSION_MENU_SEQUENCES,
 		menuItemLabels: menuItemLabels,
@@ -685,6 +713,7 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 		archiveIndex: archiveIndex,
 		nodeFromFiber: nodeFromFiber,
 		fiberOf: fiberOf,
+		tr: tr,
 		DeleteConfirmDialog: DeleteConfirmDialog
 	};
 	return module.exports;
