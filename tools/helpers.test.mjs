@@ -11,10 +11,13 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, posix, win32 } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { test } from 'node:test';
+import { after, test } from 'node:test';
 
 import {
+    deleteSession,
+    diskSessionReport,
     findSessionSnapshot,
+    hasActiveJob,
     service,
     sessionDirectoryFromLogPath,
     snapshotSessionId,
@@ -38,6 +41,27 @@ process.env.DSH_PURGE_DEBUG = '1';
  * or inspected (dictionary keys, dialog variant classes).
  */
 const clientSrc = readFileSync(fileURLToPath(new URL('../client/client.js', import.meta.url)), 'utf8');
+
+/**
+ * The host half's source, read once. A few invariants live in the wiring rather
+ * than in an exported helper (which argument a service call receives, which
+ * member a getter is read from), so they are pinned by inspecting the source.
+ * This is deliberately not a whole-module snapshot: only these exact call
+ * shapes are asserted.
+ */
+const hostSrc = readFileSync(fileURLToPath(new URL('../lib/index.js', import.meta.url)), 'utf8');
+
+/**
+ * `hostSrc` with comments removed. The regression checks below assert that a
+ * DEFECT is absent, and the fixes' own explanatory comments quote the defective
+ * spellings (`header.title`, `status !== 'finished'`), so scanning the raw
+ * source would match the documentation. Stripping comments keeps the assertion
+ * about executable code. Crude on purpose: `lib/index.js` contains no regex or
+ * string literal that a `//` or `/*` could appear inside.
+ */
+const hostCode = hostSrc
+    .replace(/\/\*[\s\S]*?\*\//gu, '')
+    .replace(/^\s*\/\/.*$/gmu, '');
 
 test('snapshotSessionId reads the id from the snapshot header', () => {
     // Exact shape returned by @deepseek-ai/dsh-session-persistence-jsonl.
@@ -213,6 +237,250 @@ test('service() degrades a throwing or unusable provider to "missing"', () => {
     assert.equal(service({ get: () => null }, 'x'), undefined);
 });
 
+// ── the background-job gate ────────────────────────────────────────────────
+//
+// `jobs.list(caller?)` takes a SessionId and returns the jobs owned by that
+// session PLUS every unowned job — and the registry RETAINS settled jobs. Three
+// independent defects made this gate useless or harmful: passing the Agent
+// OBJECT matched no owner (so only unowned jobs were ever seen), treating an
+// unowned job as this session's work would let a stray job refuse an unrelated
+// delete forever, and `status !== 'finished'` tested a value that does not exist
+// in `JobStatus` ('running' | 'stopping' | 'completed' | 'killed' | 'failed').
+// Either way a session with live background work could be torn down, or a clean
+// one refused with `busy` forever.
+
+test("hasActiveJob counts only this session's in-flight jobs", () => {
+    const own = (status) => ({ owner: 'session-a', status });
+    assert.equal(hasActiveJob([own('running')], 'session-a'), true);
+    assert.equal(hasActiveJob([own('stopping')], 'session-a'), true);
+    // Terminal states never block a delete.
+    assert.equal(hasActiveJob([own('completed')], 'session-a'), false);
+    assert.equal(hasActiveJob([own('killed')], 'session-a'), false);
+    assert.equal(hasActiveJob([own('failed')], 'session-a'), false);
+    // 'finished' is NOT a JobStatus; a settled row must not be treated as active.
+    assert.equal(hasActiveJob([own('finished')], 'session-a'), false);
+    // One live job among settled ones still blocks.
+    assert.equal(hasActiveJob([own('completed'), own('running')], 'session-a'), true);
+});
+
+test('hasActiveJob ignores jobs this session does not own', () => {
+    // Jobs owned by another session, and unowned jobs — which `list()` returns
+    // to EVERY caller because they "belong to nobody" — must never refuse a
+    // delete; they would otherwise block an unrelated session forever.
+    const other = { owner: 'session-b', status: 'running' };
+    const unowned = { status: 'running' };
+    assert.equal(hasActiveJob([other], 'session-a'), false);
+    assert.equal(hasActiveJob([unowned], 'session-a'), false);
+    assert.equal(hasActiveJob([other, unowned], 'session-a'), false);
+    // The same rows DO block their actual owner, so the filter is not a no-op.
+    assert.equal(hasActiveJob([other], 'session-b'), true);
+    // A row with no owner at all never matches any session.
+    assert.equal(hasActiveJob([{ status: 'running' }], 'session-a'), false);
+    assert.equal(hasActiveJob([{ status: 'running' }], 'session-b'), false);
+});
+
+test('hasActiveJob degrades safely on malformed or empty input', () => {
+    assert.equal(hasActiveJob([], 'session-a'), false);
+    assert.equal(hasActiveJob(undefined, 'session-a'), false);
+    assert.equal(hasActiveJob(null, 'session-a'), false);
+    assert.equal(hasActiveJob('nonsense', 'session-a'), false);
+    assert.equal(hasActiveJob([null, undefined], 'session-a'), false);
+    // An unreadable status on an OWNED job counts as in flight: refusing is the
+    // safe side of this gate.
+    assert.equal(hasActiveJob([{ owner: 'session-a' }], 'session-a'), true);
+    assert.equal(hasActiveJob([{ owner: 'session-a', status: 42 }], 'session-a'), true);
+});
+
+test('the job gate passes the session id, not the agent object', () => {
+    // Structural: the call site must pass a branded SessionId. Passing `agent`
+    // compared an object against `job.owner` and never matched.
+    assert.match(hostCode, /jobs\.list\(sessionId\)/u);
+    assert.match(hostCode, /hasActiveJob\(snapshots, sessionId\)/u);
+    assert.equal(/jobs\.list\(agent\)/u.test(hostCode), false, 'the job gate went back to passing the Agent object');
+    // And it must not resurrect the non-existent status.
+    assert.equal(/'finished'/u.test(hostCode), false, "the job gate went back to testing 'finished'");
+});
+
+// ── the archive set is registry-global ─────────────────────────────────────
+//
+// `workspaceRegistry.list()` returns `Workspace` entries carrying only
+// id/path/title/createdAt/updatedAt/sessionIds + methods — no
+// `archivedSessionIds`. Reading it per entry always yielded nothing, so the
+// state report claimed every session was unarchived.
+
+test('the archived set is read from the registry, not from workspace entries', () => {
+    assert.match(hostSrc, /workspaces\.archivedSessionIds/u);
+});
+
+// ── SessionHeader carries no title ─────────────────────────────────────────
+//
+// SessionHeader is version/id/createdAt/cwd?/parentSession?/isSeeded/origin?/
+// delegationDepth?/agentPreset?. Titles are session EVENTS written by
+// dsh-session-title, so `header.title` can never resolve.
+
+test('nothing reads a non-existent header title', () => {
+    assert.equal(/header\??\.title/u.test(hostCode), false, 'a header.title read came back');
+});
+
+test('the state report reads the archived flag from the registry-level set', async () => {
+    // The registry exposes `archivedSessionIds`; a `Workspace` ENTRY does not,
+    // which is why the earlier per-entry read reported every session as
+    // unarchived. The stub gives each source a DIFFERENT member so the
+    // assertions can tell which one was read.
+    const ctx = {
+        get: (name) => {
+            if (name === 'sessionPersistence') {
+                return {
+                    list: async () => [
+                        { header: { id: 'session-registry', cwd: 'D:\\proj' }, revision: 'r1', sizeBytes: 10 },
+                        { header: { id: 'session-plain', cwd: 'D:\\proj' }, revision: 'r2', sizeBytes: 20 },
+                        { header: { id: 'session-entry', cwd: 'D:\\proj' }, revision: 'r3', sizeBytes: 30 },
+                    ],
+                };
+            }
+            if (name === 'workspaceRegistry') {
+                return {
+                    archivedSessionIds: ['session-registry'],
+                    // Not a shape upstream has; kept only as a union fallback.
+                    list: () => [{ id: 'ws', archivedSessionIds: ['session-entry'] }],
+                };
+            }
+            return undefined;
+        },
+    };
+    const report = await diskSessionReport(ctx);
+    assert.equal(report.persistence, true);
+    const byId = Object.fromEntries(report.sessions.map((s) => [s.id, s]));
+    // The registry-level set is what decides: this is the case that used to be
+    // reported as false.
+    assert.equal(byId['session-registry'].archived, true,
+        'the registry-level archive set must mark this session archived');
+    // The union fallback keeps a per-entry value; it never un-archives.
+    assert.equal(byId['session-entry'].archived, true,
+        'the union fallback must not drop a per-entry value');
+    assert.equal(byId['session-plain'].archived, false);
+    // SessionHeader has no title, so the report must say so rather than pretend.
+    assert.equal(byId['session-registry'].title, null);
+    assert.equal(byId['session-registry'].cwd, 'D:\\proj');
+    assert.equal(byId['session-plain'].sizeBytes, 20);
+    // A missing registry still reports the sessions it can see.
+    const noRegistry = await diskSessionReport({
+        get: (name) => (name === 'sessionPersistence'
+            ? { list: async () => [{ header: { id: 'x' }, revision: 'r' }] }
+            : undefined),
+    });
+    assert.equal(noRegistry.sessions[0].archived, false);
+});
+
+test('the state report degrades when services are missing', async () => {
+    assert.deepEqual(await diskSessionReport({ get: () => undefined }),
+        { persistence: false, sessions: [] });
+});
+
+// ── the background-job gate, driven for real ───────────────────────────────
+//
+// The source assertions above pin the call SHAPE; this drives the actual
+// residency + job gate with stub services, which is what catches the class of
+// regression that mattered: the old call received the Agent object instead of
+// the session id, so the gate never saw the session's own jobs at all.
+
+/**
+ * A context whose only services are `agents` (one strictly-idle resident) and
+ * a recording `jobs` service. `sessions` is deliberately absent: a session is
+ * still considered resident through `agents`, which is the path the job gate
+ * guards.
+ */
+
+// A `deleteSession` run below falls back to the durable restart queue when the
+// job gate lets the session through, and that queue is written under the
+// resolved harness home. Point it at a temp directory so the suite never touches
+// the real `~/.dsh` (the deliverable's core promise).
+const gateHome = await mkdtemp(join(tmpdir(), 'dsh-purge-gate-'));
+const priorDshHome = process.env.DSH_HOME;
+process.env.DSH_HOME = gateHome;
+after(() => {
+    if (priorDshHome === undefined) delete process.env.DSH_HOME;
+    else process.env.DSH_HOME = priorDshHome;
+    return rm(gateHome, { recursive: true, force: true });
+});
+
+/** @see the doc comment above for the shape this returns. */
+function stubResidentCtx(jobRows) {
+    const seenCallers = [];
+    const agent = {
+        id: 'session-gate',
+        // The gate prefers `agent.session.id`, the exact branded SessionId the
+        // job registry compares `job.owner` against.
+        session: { id: 'session-gate' },
+        status: 'idle',
+        phase: { kind: 'idle' },
+        scope: { dispose: async () => {} },
+    };
+    const services = {
+        agents: { get: (id) => (id === agent.id ? agent : undefined), list: () => [agent] },
+        jobs: {
+            list: (caller) => {
+                seenCallers.push(caller);
+                return jobRows;
+            },
+        },
+    };
+    return { ctx: { get: (name) => services[name] }, agent, seenCallers };
+}
+
+/** One job row owned by `session-gate`, as `JobView` actually projects it. */
+const ownedJob = (status) => ({ id: 'job-1', kind: 'bash', label: 'x', owner: 'session-gate', status });
+
+test('an in-flight background job blocks the delete and the gate is asked for this session', async () => {
+    for (const status of ['running', 'stopping']) {
+        const stub = stubResidentCtx([ownedJob(status)]);
+        const result = await deleteSession(stub.ctx, 'session-gate');
+        assert.deepEqual(result, { ok: false, code: 'busy' }, `${status} must refuse with busy`);
+        // The gate must be asked about THIS session. Registering the Agent
+        // object made `job.owner === caller` never match, so a session's own
+        // live jobs were invisible and the teardown proceeded.
+        assert.deepEqual(stub.seenCallers, ['session-gate'],
+            'jobs.list must receive the session id, never the agent object');
+    }
+});
+
+test('a settled background job does not block the delete', async () => {
+    // The registry RETAINS settled jobs, so a delete must not be refused forever
+    // because some long-finished job is still listed.
+    for (const status of ['completed', 'killed', 'failed', 'finished']) {
+        const stub = stubResidentCtx([ownedJob(status)]);
+        const result = await deleteSession(stub.ctx, 'session-gate');
+        // No persistence service here, so the delete itself cannot proceed and
+        // the runtime fallback queues it — the point is that the job gate did
+        // NOT refuse it with 'busy'.
+        assert.notEqual(result.code, 'busy', `${status} must not be treated as in-flight`);
+        assert.equal(result.ok, true);
+        assert.equal(result.mode, 'queued');
+    }
+});
+
+test('a live job this session does not own cannot refuse its delete', async () => {
+    // `jobs.list(id)` also returns UNOWNED jobs (visible to every caller), so
+    // the gate must filter by owner first: otherwise any stray unowned job, or
+    // another session's job, would refuse this delete forever.
+    for (const rows of [
+        [{ id: 'job-open', kind: 'bash', label: 'x', status: 'running' }],
+        [{ id: 'job-other', kind: 'bash', label: 'x', owner: 'session-elsewhere', status: 'running' }],
+        [ownedJob('completed'), { id: 'job-open', kind: 'bash', label: 'x', status: 'running' }],
+    ]) {
+        const stub = stubResidentCtx(rows);
+        const result = await deleteSession(stub.ctx, 'session-gate');
+        assert.notEqual(result.code, 'busy', 'a job this session does not own must not block it');
+        assert.equal(result.mode, 'queued');
+    }
+});
+
+test('an unreadable job status refuses rather than guessing', async () => {
+    // Owned, so it is this session's work and an unknown status is unsafe.
+    const stub = stubResidentCtx([{ id: 'job-1', kind: 'bash', label: 'x', owner: 'session-gate' }]);
+    assert.deepEqual(await deleteSession(stub.ctx, 'session-gate'), { ok: false, code: 'busy' });
+});
+
 test('a real session root layout maps to the session directory, not its parent', async () => {
     // Built with real fs operations so the check exercises the host platform's
     // own separators — the CI matrix then covers POSIX and Windows for real.
@@ -308,6 +576,66 @@ new Function('window', 'require', clientSrc)(
     stubRequire,
 );
 const MENU = clientModule.__test;
+
+// ── locale resolution must not depend on entry activation order ────────────
+//
+// `apply()` captures `ctx.get("locale")`, but the client entry graph does not
+// guarantee the locale row is active first. Before this suite existed the
+// service was bound once in apply() and never re-resolved, so a plugin mounted
+// early would fall back to Chinese forever. `tr` now resolves through a lazy
+// lookup; these cases drive the REAL `tr` with a context whose locale appears
+// only after mount.
+
+test('tr follows a locale service that is not active yet at mount time', () => {
+    assert.equal(typeof clientModule.__testMountLocale, 'function');
+    assert.equal(typeof MENU.tr, 'function');
+
+    // Mount with NO locale service at all, the way an early entry sees it.
+    clientModule.__testMountLocale({ get: () => undefined });
+    assert.equal(MENU.tr('menu.deleteSession'), '删除会话');
+
+    // The locale row activates after mount; a later render must pick it up.
+    clientModule.__testMountLocale({ get: (name) => (name === 'locale' ? { getLocale: () => ({ active: 'en' }) } : undefined) });
+    assert.equal(MENU.tr('menu.deleteSession'), 'Delete session');
+    assert.equal(MENU.tr('error.live'), 'Session is running — stop it (or let it finish), then delete');
+    // Interpolation and the unknown-key fallback still work in the en path.
+    assert.equal(MENU.tr('dialog.done', { name: 'Alpha' }), 'Deleted session “Alpha”.');
+    assert.equal(MENU.tr('no.such.key'), 'no.such.key');
+});
+
+test('tr tolerates a broken or missing locale service', () => {
+    // A throwing accessor must not break a dialog render.
+    clientModule.__testMountLocale({ get() { throw new Error('fiber disposed'); } });
+    assert.equal(MENU.tr('menu.deleteSession'), '删除会话');
+    // A locale service without getLocale(), and a snapshot with no `active`.
+    clientModule.__testMountLocale({ get: () => ({}) });
+    assert.equal(MENU.tr('menu.deleteSession'), '删除会话');
+    clientModule.__testMountLocale({ get: () => ({ getLocale: () => null }) });
+    assert.equal(MENU.tr('menu.deleteSession'), '删除会话');
+    // No mounting at all is still safe (the fallback path is a dictionary hit).
+    assert.equal(typeof MENU.tr('menu.deleteSession'), 'string');
+});
+
+test('the locale lookup is lazy, not a one-shot capture at apply time', () => {
+    // Structural backstop: `tr` must reach the locale through `liveLocale()`.
+    // Re-binding `localeService` directly inside `tr` would reintroduce the
+    // apply-time capture this fix removed.
+    assert.match(clientSrc, /function liveLocale\(\)/u);
+    assert.match(clientSrc, /var locale = liveLocale\(\);/u);
+    assert.match(clientSrc, /ctxRef\.get\("locale"\)/u);
+});
+
+test('the client inject list names only packages that exist', () => {
+    // `@deepseek-ai/dsh-client-runtime` was removed upstream; an unknown inject
+    // name is skipped silently at boot, so a stale entry is invisible dead
+    // metadata. The client module requires only react and react-dom/client, so
+    // the locale entry is the one dependency edge worth declaring.
+    const pkg = JSON.parse(readFileSync(fileURLToPath(new URL('../package.json', import.meta.url)), 'utf8'));
+    const inject = pkg.dsh.client.inject;
+    assert.deepEqual(inject, ['@deepseek-ai/dsh-client-locale']);
+    assert.equal(inject.includes('@deepseek-ai/dsh-client-runtime'), false,
+        'the removed dsh-client-runtime package came back into the inject list');
+});
 
 test('the client module exposes its menu helpers to this suite', () => {
     assert.equal(typeof MENU.isSessionMenuDom, 'function');
