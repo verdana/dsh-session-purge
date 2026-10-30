@@ -4,10 +4,11 @@
 本文只写**实现层面**：已核实的上游事实、磁盘与接口契约、算法、测试计划、改动清单与风险。
 
 > 所有"上游事实"都带 `文件:行号`，均在本机 DSH 源码树 `D:\deepseek-harness`（版本 `0.2.1-rc.2`；
-> 上一版基线为 `0.2.0-rc.2`，两代差异见 [docs/compat-0.2.1-rc.2.md](../compat-0.2.1-rc.2.md)；
-> rc.2 → rc.4 的增量核查见 [docs/compat-0.2.1-rc.4.md](../compat-0.2.1-rc.4.md)。该区间内本文引用的
-> 上游文件只有 `ui-primitives/src/Menu.tsx` 与 `ui-settings-general/src/client/index.ts` 有改动，
-> 均为增量（`aria-current` / `minWidthFromAnchor` 与一处埋点），不改变本文的结论）中逐条读过。
+> 上一版基线为 `0.2.0-rc.2`，两代差异见 [compat-0.2.1-rc.2.md](../compat-0.2.1-rc.2.md)）中逐条读过。
+> 之后的增量见 [compat-0.2.1-rc.4.md](../compat-0.2.1-rc.4.md) 与 [compat-0.2.1-rc.5.md](../compat-0.2.1-rc.5.md)：
+> 这两段区间内本文引用的上游文件只有 `ui-primitives/src/Menu.tsx` 与
+> `ui-settings-general/src/client/index.ts` 有改动，均为增量（`aria-current` / `minWidthFromAnchor`
+> 与一处埋点），不改变本文的结论；rc.4 → rc.5 只动了 `ui-chat` 的 reasoning 渲染，本文未引用该文件。
 > 标注 **UNVERIFIED** 的条目表示尚未实机验证，必须在 M1/M2 阶段用探针确认后再依赖。
 
 ## 0. 实现状态
@@ -653,14 +654,16 @@ M2/M3 已走通：注入图标 → 面板（空）→ 行菜单移入 → 确认
 
 | DSH 版本 | 侧边栏注入 | 面板 | 设置页 | 复原即时可见 |
 |---|---|---|---|---|
-| `0.2.1-rc.4`（主目标） | ✅ | ✅ | ✅ 账号菜单 → 设置（`settings.launcher` 被账号菜单占用） | ✅ `sessions.refresh()` |
+| `0.2.1-rc.5`（主目标） | ✅ | ✅ | ✅ 账号菜单 → 设置（`settings.launcher` 被账号菜单占用） | ✅ `sessions.refresh()` |
+| `0.2.1-rc.4` | ✅ | ✅ | ✅ 同上 | ✅ `sessions.refresh()` |
 | `0.2.1-rc.2` / `rc.3` | ✅ | ✅ | ✅ 同上 | ✅ `sessions.refresh()` |
 | `0.2.0-rc.2` | ✅ | ✅ | ✅ 侧边栏「设置」按钮 | ✅ `sessions.refresh()` |
 | `0.1.7-rc.2` | ✅（同代 header） | ✅ | ✅ | 预期 ✅，**UNVERIFIED** |
 | `0.1.5-rc.3` | ✅（同代 header 无按键帽） | ✅ | ❌ 无 `settings.section` → 只能走路由 | ❌ 提示刷新页面 |
 
-表中 rc.2 与 rc.4 为实机验证；**rc.3 未单独起实例**，它与 rc.4 只差 tooltip 与日志输出层面，
-故沿用 rc.4 结论（见 [compat-0.2.1-rc.4.md](../compat-0.2.1-rc.4.md)）。
+表中 rc.2 / rc.4 / rc.5 为实机验证；**rc.3 未单独起实例**，它与相邻两版只差 tooltip 与日志输出
+层面，故沿用同代结论（见 [compat-0.2.1-rc.4.md](../compat-0.2.1-rc.4.md)、
+[compat-0.2.1-rc.5.md](../compat-0.2.1-rc.5.md)）。
 
 降级原则：任何一处上游面缺失都只让**该功能**降级，不影响其它功能；所有降级都要在 `/session-purge/state`
 与启动日志里可诊断。

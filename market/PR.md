@@ -19,7 +19,7 @@ Deleting a session moves its directory into `~/.dsh/session-purge/trash/`, with 
 
 - `package.json` declares `dsh.bundle` → `./cordis.patch.yml` (`id: session-purge`, `name: dsh-session-purge`); `dsh.client` ships the browser UI.
 - Zero runtime dependencies, no build step; one codebase for Windows / Linux / macOS. The `checks` workflow runs the suites on ubuntu / macos / windows and on Node 22 and 24, and is green on `main`.
-- Verified live on DSH 0.2.1-rc.4, 0.2.1-rc.2 and 0.2.0-rc.2 — move → restore → permanent delete → sweep, the bin panel and the settings page. 0.1.5-rc.3 has no settings extension point, so the settings page is unavailable there, and the README says so.
+- Verified live on DSH 0.2.1-rc.5, 0.2.1-rc.4, 0.2.1-rc.2 and 0.2.0-rc.2 — move → restore → permanent delete → sweep, the bin panel and the settings page. 0.1.5-rc.3 has no settings extension point, so the settings page is unavailable there, and the README says so.
 - The repo has the `dsh-plugin` topic.
 
 Why this is not just archive: archive hides a session from the default list while its log stays on disk forever. This plugin handles deletion, split into the reversible part and reclaiming the space.

@@ -1,5 +1,8 @@
 # dsh-session-purge × DSH 0.2.1-rc.4 兼容性核查
 
+> **历史切片**：本文只覆盖 `rc.2 → rc.4`。之后版本的增量见
+> [compat-0.2.1-rc.5.md](./compat-0.2.1-rc.5.md)（当前支持面的依据）。
+
 日期：2026-10-28
 插件：`dsh-session-purge@0.5.4`（工作区，未改版本号）
 目标 DSH：`0.2.1-rc.4`（标签 `dsh-v0.2.1-rc.4`，HEAD `504a01a957`；npm `next` 指向此版本）

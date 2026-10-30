@@ -7,6 +7,14 @@
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循
 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [未发布]
+
+### 文档
+
+- 兼容性说明更新到 DSH `0.2.1-rc.5`：`rc.4 → rc.5` 之间上游只改了思考块（reasoning）渲染，
+  插件依赖的契约面未变，实机复验通过，无需改动代码（见
+  [docs/compat-0.2.1-rc.5.md](https://github.com/verdana/dsh-session-purge/blob/main/docs/compat-0.2.1-rc.5.md)）。
+
 ## [0.5.5] - 2026-10-28
 
 ### 文档

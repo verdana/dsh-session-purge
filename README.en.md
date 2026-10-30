@@ -184,19 +184,18 @@ plugin, restart `dsh web` once; a page reload alone will not show the new footer
 
 ## Requirements
 
-- DSH, with a working `dsh web`. **Fully verified live on 0.2.1-rc.4, 0.2.1-rc.2
-  and 0.2.0-rc.2**: the bin panel, the settings page's auto-clean controls, the full
-  move → restore → delete-permanently → sweep round trip, plus (on 0.2.1) the
+- DSH, with a working `dsh web`. **Fully verified live on 0.2.1-rc.5, 0.2.1-rc.4,
+  0.2.1-rc.2 and 0.2.0-rc.2**: the bin panel, the settings page's auto-clean controls,
+  the full move → restore → delete-permanently → sweep round trip, plus (on 0.2.1) the
   account-menu settings entry and the dev repro scripts against the plugin-style
-  JSONL backend. rc.3 was not run separately this round, but it differs from rc.4
-  only in tooltip and logging behavior; none of the contracts this plugin relies on
-  changed anywhere between rc.2 and rc.4 (see
-  [docs/compat-0.2.1-rc.4.md](https://github.com/verdana/dsh-session-purge/blob/main/docs/compat-0.2.1-rc.4.md)).
-  The menu and sidebar
-  injection for 0.1.7-rc.2 / 0.1.5-rc.3 use the same DOM detection and are expected
-  to work, but were not re-verified in this round; 0.1.5-rc.3 has no settings
-  extension point, so the **settings page is unavailable there** — use the HTTP
-  routes above instead.
+  JSONL backend. rc.3 was never run on its own — it differs from its neighbours only
+  in tooltip and logging behavior; none of the contracts this plugin relies on
+  changed anywhere between rc.2 and rc.5 (see
+  [docs/compat-0.2.1-rc.5.md](https://github.com/verdana/dsh-session-purge/blob/main/docs/compat-0.2.1-rc.5.md)).
+  The menu and sidebar injection for 0.1.7-rc.2 / 0.1.5-rc.3 use the same DOM detection
+  and are expected to work, but were not re-verified in this round; 0.1.5-rc.3 has no
+  settings extension point, so the **settings page is unavailable there** — use the
+  HTTP routes above instead.
 - Node.js `^22.19.0 || >=24` (the `engines` field in `package.json`; what matters
   in practice is the Node your `dsh web` runs on).
 - Zero dependencies, no build step, one codebase for Windows / Linux / macOS.
