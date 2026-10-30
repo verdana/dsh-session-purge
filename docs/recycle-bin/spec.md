@@ -143,7 +143,7 @@
 1. 客户端 `POST /session-purge/restore { sessionId }`。
 2. 宿主校验条目存在、数据目录完整（含规范日志文件名），把载荷 `rename` 回**记录的原始目录**（不重新推导路径——上游会校验路径与 header 是否自洽，放错会让整个会话列表报错）。
 3. 归属与归档：按 `cwd` 找回工作区并 `attachSession`（补回可能已被剪掉的 `sessionIds` 槽位，避免落进 "Ungrouped"），再清理归档脏标记（`unarchiveSession`），`wasArchived = true` 的重新归档。任何一步失败只记日志，不影响复原结果。
-4. 客户端成功后调用 `ctx.sessions.refresh()`；若该服务没有 `refresh`（旧版本），则提示 `已复原，刷新页面（Ctrl+Shift+R）后可见`。
+4. 客户端成功后调用 `ctx.sessions.refresh()`（侧栏即时出现该行、无需刷新页面），并用**顶部 toast** 报告 `已复原「X」`（`role=alert`，约 6 秒后淡出）——与移入成功同一套报告方式，面板内不再重复同一句。若该服务没有 `refresh`（旧版本），toast 改报 `已复原，刷新页面（Ctrl+Shift+R）后可见`。
 5. 边界：目标目录已存在 → `conflict`，行内提示 `该会话已存在，无法复原`；原始目录（cwd）已不存在、或该会话本来就没有 cwd → 允许复原，但提示 `原始目录已不存在，复原后可能不会显示在列表中`（没有 cwd 的会话上游列表投影根本不显示，属于同一种"复原成功但看不到"的情况）。
 
 ### 5.5 真实删除流程
@@ -236,7 +236,7 @@
 | `bin.purge` | 真实删除 | Delete permanently |
 | `bin.confirm` | 确定 | Confirm |
 | `bin.restored` | 已复原「{name}」 | Restored “{name}” |
-| `bin.restoreRefreshHint` | 已复原，刷新页面（Ctrl+Shift+R）后可见 | Restored — refresh the page (Ctrl+Shift+R) to see it |
+| `bin.restoreHint` | 已复原，刷新页面（Ctrl+Shift+R）后可见 | Restored — refresh the page (Ctrl+Shift+R) to see it |
 | `bin.restoreConflict` | 该会话已存在，无法复原 | That session already exists and cannot be restored |
 | `bin.restoreMissingCwd` | 原始目录已不存在，复原后可能不会显示在列表中 | The original folder no longer exists; the restored session may not appear in the list |
 | `bin.purgeConfirm.title` | 永久删除会话 | Delete permanently |

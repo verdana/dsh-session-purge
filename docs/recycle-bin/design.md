@@ -505,6 +505,10 @@ overlay 座位能提供的全部交互保证。`shell.overlay` 版本保留为�
   `sessions.refresh()` + 刷新面板计数。
 - 终态的归属：成功 = toast（无决策，不值得一次点击）；排队 / 定位失败 / 出错 = 留在弹窗
   （需要用户阅读并决策），配色琥珀，不再使用危险红。
+- 0.5.5 之后**复原也复用同一个 toast 通道**（`showToast()`，`showTrashToast()` 成为它的薄封装）：
+  面板内不再写 `bin.restored` 的 notice——同一件事只留一个报告点；`cwdMissing` 与「刷新后可见」
+  这类补充信息并入 toast 文案，由纯函数 `restoreNoticeText()` 组装，单测钉住。
+  面板 notice 此后只服务清扫结果、清空部分失败与设置入口提示。
 - **已同步更新** `tools/helpers.test.mjs` 的菜单 fixture 与文案断言（DEVELOPING.md 的硬规矩）。
 
 ### 7.4 设置页注册设计（M3 草稿）
@@ -599,7 +603,7 @@ ctx.inject(['slots'], (scope) => {
 
 ### 8.3 渲染探针（真实 React + 真实主题 CSS）
 
-- `tools/trash-panel-probe.mjs`：把面板的 7 种状态（关闭/空/列表/**60 条分页**/已复原/确认/失败）全部
+- `tools/trash-panel-probe.mjs`：把面板的 7 种状态（关闭/空/列表/**60 条分页**/清扫提示/确认/失败）全部
   渲染出来，在**明暗两套主题**下读计算样式并断言（空态文案、未命名占位、过期提示、底栏统计与策略、
   危险按钮 = error token、暗色卡片颜色不同、**卡片 ≥ 700px 且标题列 ≥ 500px**、
   **一页 50 条 + 「加载更多」点开后 60 条**）。走的是**自绘降级路径**，正是旧代 shell 的表面。

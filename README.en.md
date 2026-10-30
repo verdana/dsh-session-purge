@@ -75,7 +75,7 @@ deleted session, newest deletion first:
   `Deleted 3 days ago`, the size and the session id; entries past their retention
   window are marked "Will be removed by the next auto-clean".
 - **Restore** moves the directory back exactly where it came from (byte-for-byte);
-  the sidebar row reappears without a page reload.
+  the sidebar row reappears without a page reload, and a toast reports the outcome.
 - **Delete permanently** removes it after a confirmation, and cannot be undone.
 - **Empty the recycle bin** removes everything after a confirmation that states
   the entry count and the space involved.
