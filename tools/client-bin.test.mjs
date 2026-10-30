@@ -290,7 +290,7 @@ test('open and close toggle the panel and clear a pending confirm', () => {
     assert.equal(BIN.binStore.get().confirm, null);
 });
 
-test('restoring an entry drops the row, re-baselines sessions and notices the outcome', async () => {
+test('restoring an entry drops the row, re-baselines sessions and reports by toast', async () => {
     resetStore();
     refreshCalls.length = 0;
     const entry = { id: 'session-a', title: 'A', deletedAt: new Date().toISOString(), sizeBytes: 10 };
@@ -302,21 +302,23 @@ test('restoring an entry drops the row, re-baselines sessions and notices the ou
     const state = BIN.binStore.get();
     assert.deepEqual(state.entries, []);
     assert.equal(state.busyId, null);
-    assert.equal(state.notice, '已复原「A」');
+    // The toast is the only report for a restore: the row is already gone from
+    // the panel, so the panel must not repeat the same sentence underneath it.
+    assert.equal(state.notice, null);
     assert.equal(refreshCalls.length, 1, 'the session list must be re-baselined');
 });
 
-test('a restore whose original folder is gone says so instead of lying', async () => {
-    resetStore();
-    const entry = { id: 'session-b', title: null, deletedAt: new Date().toISOString() };
-    BIN.binStore.set({ open: true, entries: [entry] });
-    stubFetch({
-        '/session-purge/restore': { status: 200, body: { ok: true, restoredTo: '/x', wasArchived: false, cwdMissing: true } },
-    });
-    await BIN.restoreBinEntry(entry);
-    const notice = BIN.binStore.get().notice;
-    assert.equal(notice.includes('已复原「未命名会话」'), true, notice);
-    assert.equal(notice.includes('原始目录已不存在'), true, notice);
+test('the restore toast text names the session and carries the missing-folder caveat', () => {
+    // Same copy the panel used to render inline, now carried by the banner.
+    assert.equal(BIN.restoreNoticeText({ cwdMissing: false }, { id: 's', title: 'A' }, true), '已复原「A」');
+    const missing = BIN.restoreNoticeText({ cwdMissing: true }, { id: 's', title: null }, true);
+    assert.equal(missing.includes('已复原「未命名会话」'), true, missing);
+    assert.equal(missing.includes('原始目录已不存在'), true, missing);
+    // A failed re-baseline replaces the whole sentence: the session is back on
+    // disk but the sidebar cannot show it until the page reloads.
+    assert.equal(
+        BIN.restoreNoticeText({ cwdMissing: false }, { id: 's', title: 'A' }, null),
+        '已复原，刷新页面（Ctrl+Shift+R）后可见');
 });
 
 test('a refused restore keeps the row and shows the row-level reason', async () => {

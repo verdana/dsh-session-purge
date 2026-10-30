@@ -574,7 +574,25 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 		binStore.set({ open: false, confirm: null });
 	}
 
-	/** Restore one entry, then re-baseline the session list. */
+	/**
+	 * Compose the report shown after a successful restore. Kept pure so the
+	 * copy can be pinned by the unit tests without a DOM.
+	 * @param body - the host's `/session-purge/restore` response.
+	 * @param entry - the bin entry that was restored.
+	 * @param refreshed - result of re-baselining the session list; null when it failed.
+	 * @returns the text for the success toast.
+	 */
+	function restoreNoticeText(body, entry, refreshed) {
+		var text = tr("bin.restored", { name: displayTitle(entry) });
+		if (body !== null && body !== undefined && body.cwdMissing === true) {
+			text = text + " · " + tr("bin.restoreMissingCwd");
+		} else if (refreshed === null) {
+			text = tr("bin.restoreHint");
+		}
+		return text;
+	}
+
+	/** Restore one entry, report it by toast, then re-baseline the session list. */
 	function restoreBinEntry(entry) {
 		binStore.set({ busyId: entry.id, error: null, notice: null });
 		return binRequest("/session-purge/restore", {
@@ -592,10 +610,12 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 				return candidate.id !== entry.id;
 			});
 			var refreshed = refreshSessions();
-			var notice = tr("bin.restored", { name: displayTitle(entry) });
-			if (body.cwdMissing === true) notice = notice + " · " + tr("bin.restoreMissingCwd");
-			else if (refreshed === null) notice = tr("bin.restoreHint");
-			binStore.set({ busyId: null, entries: entries, notice: notice });
+			// The toast is the single report for a completed restore: the row is
+			// already gone from the panel, so repeating the same sentence inside
+			// it would just compete with the banner for the same news.
+			var text = restoreNoticeText(body, entry, refreshed);
+			binStore.set({ busyId: null, entries: entries, notice: null });
+			showToast(text);
 		}, function () {
 			binStore.set({ busyId: null, error: tr("bin.loadFailed") });
 		});
@@ -1499,21 +1519,32 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 	}
 
 	/**
-	 * Report a completed move-to-bin. The banner is the whole report: which
-	 * session moved and one shortcut into the bin (the same next step the old
-	 * success dialog offered, minus the mandatory click).
-	 * @param name - display name of the session that moved.
+	 * Report a completed action in the top-center banner.
+	 * @param text - the message to show.
+	 * @param action - optional inline action (label plus handler).
 	 */
-	function showTrashToast(name) {
+	function showToast(text, action) {
 		if (typeof document === "undefined" || document.body === null) return;
 		if (typeof ReactDOMClient === "undefined" || ReactDOMClient === null) return;
 		var host = ensureToastHost();
 		toastSeq += 1;
 		host.root.render(React.createElement(ToastBanner, {
 			seq: toastSeq,
-			text: tr("dialog.trash.done", { name: name }),
-			action: { label: tr("dialog.trash.openBin"), onClick: openTrashPanel }
+			text: text,
+			action: action
 		}));
+	}
+
+	/**
+	 * Report a completed move-to-bin. The banner is the whole report: which
+	 * session moved and one shortcut into the bin (the same next step the old
+	 * success dialog offered, minus the mandatory click).
+	 * @param name - display name of the session that moved.
+	 */
+	function showTrashToast(name) {
+		showToast(tr("dialog.trash.done", { name: name }), {
+			label: tr("dialog.trash.openBin"), onClick: openTrashPanel
+		});
 	}
 
 	// ── sidebar entry ────────────────────────────────────────────────────────
@@ -2501,6 +2532,7 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 		closeTrashPanel: closeTrashPanel,
 		refreshBin: refreshBin,
 		restoreBinEntry: restoreBinEntry,
+		restoreNoticeText: restoreNoticeText,
 		requestBinPurge: requestBinPurge,
 		requestBinEmpty: requestBinEmpty,
 		cancelBinConfirm: cancelBinConfirm,

@@ -128,9 +128,11 @@ writeFileSync(join(dir, 'index.html'), `<!doctype html>
         rowErrors: {}, confirm: null });
       return;
     }
-    if (state === 'restored') {
+    // A restore now reports through the top-center toast, so the panel's own
+    // notice line is pinned with the remaining producer: the sweep result.
+    if (state === 'swept') {
       window.__bin.set({ open: true, phase: 'ready', entries: [PAYLOAD.entries[1]], totalBytes: 4096,
-        settings: PAYLOAD.settings, sweep: PAYLOAD.sweep, notice: '已复原「重构回收站」', error: null,
+        settings: PAYLOAD.settings, sweep: PAYLOAD.sweep, notice: '已自动清理 2 个过期会话', error: null,
         visible: 50, busyId: null, rowErrors: {}, confirm: null });
       return;
     }
@@ -264,7 +266,7 @@ const readTokens = () => page.evaluate(() => {
 });
 
 const states = {};
-for (const state of ['closed', 'empty', 'list', 'many', 'restored', 'confirm', 'failed']) {
+for (const state of ['closed', 'empty', 'list', 'many', 'swept', 'confirm', 'failed']) {
     await page.evaluate((name) => window.__show(name), state);
     await page.waitForTimeout(220);
     states[state] = await readPanel();
@@ -353,8 +355,8 @@ check('permanent delete is offered and tinted with the error token',
     light.states.list.danger !== null
     && light.states.list.danger.background === light.tokens.error.replace('rgb', 'rgb'),
     `${light.states.list.danger?.background} vs ${light.tokens.error}`);
-check('restoring reports the outcome', light.states.restored.notice !== null
-    && light.states.restored.notice.text.includes('已复原'), String(light.states.restored.notice?.text));
+check('a sweep reports the outcome', light.states.swept.notice !== null
+    && light.states.swept.notice.text.includes('已自动清理'), String(light.states.swept.notice?.text));
 check('the confirm strip states the consequence',
     light.states.confirm.confirm !== null && light.states.confirm.confirm.text.includes('永久删除全部 3 个会话'),
     String(light.states.confirm.confirm?.text));
