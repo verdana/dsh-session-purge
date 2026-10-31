@@ -89,6 +89,10 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 			"settings.never": "从未",
 			"settings.sweepNow": "立即清理",
 			"settings.openBin": "打开回收站",
+			"settings.entryPlacement": "入口位置",
+			"settings.entryPlacementHint": "图标：工作区那一行的小图标，点开是弹窗；菜单：与「插件 / 自动化任务」并列，点开是整页。",
+			"settings.entryPlacement.icon": "图标",
+			"settings.entryPlacement.menu": "菜单",
 			"settings.saveFailed": "设置保存失败，请重试",
 			"settings.unavailable": "暂时读不到回收站设置，请重试",
 			"settings.version": "版本 {version}",
@@ -180,6 +184,10 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 			"settings.never": "never",
 			"settings.sweepNow": "Clean up now",
 			"settings.openBin": "Open the recycle bin",
+			"settings.entryPlacement": "Entry position",
+			"settings.entryPlacementHint": "Icon: a glyph on the workspace row that opens a dialog. Menu: a row beside Plugins / Automations that opens a full page.",
+			"settings.entryPlacement.icon": "Icon",
+			"settings.entryPlacement.menu": "Menu",
 			"settings.saveFailed": "Could not save the setting — try again",
 			"settings.unavailable": "The recycle-bin settings are temporarily unavailable — retry",
 			"settings.version": "Version {version}",
@@ -279,6 +287,25 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 		".sd-bin-root{position:fixed;inset:0;z-index:2300;pointer-events:none}",
 		".sd-bin-mask{position:fixed;inset:0;z-index:2300;background:rgba(0,0,0,.32);pointer-events:auto}",
 		".sd-bin-card{position:fixed;z-index:2301;left:50%;top:50%;transform:translate(-50%,-50%);width:760px;max-width:calc(100vw - 32px);max-height:calc(100vh - 96px);display:flex;flex-direction:column;background:var(--dsw-alias-bg-overlay,#1c2030);border:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.22));border-radius:12px;box-shadow:0 12px 32px rgba(0,0,0,.35);padding:16px;pointer-events:auto}",
+		// The shell's Modal card is `min(380px, 100%)` — a third of what a session
+		// list needs, and the reason titles used to be squeezed into ellipses. The
+		// doubled class raises specificity so the override cannot lose a
+		// stylesheet-order race with the shell's own CSS.
+		// The menu shape's page: the centre column is a flex track, so `height:100%`
+		// plus a shrinkable body is what gives the list a definite height to
+		// overflow against (the same reasoning as `.sd-bin-body` below).
+		".sd-bin-page{display:flex;height:100%;min-height:0;padding:28px 32px 24px;box-sizing:border-box;overflow:hidden}",
+		".sd-bin-page-inner{display:flex;flex-direction:column;gap:14px;flex:1;min-height:0;width:100%;max-width:1080px;margin:0 auto}",
+		".sd-bin-page-head{display:flex;align-items:center;gap:8px;flex:none;font-size:15px;font-weight:600;color:var(--dsw-alias-label-primary,#e8ecff)}",
+		".sd-bin-page-head .sd-icon{color:var(--dsw-alias-label-secondary,#8a93a6)}",
+		".sd-bin-page-body{display:flex;flex-direction:column;flex:1;min-height:0}",
+		// The dialog caps its list against the viewport; a page hands the height to
+		// the flex track instead.
+		".sd-bin-page .sd-bin-list{max-height:none;margin-top:0}",
+		// A page has a whole column of free space; the dialog's 30px padding would
+		// leave the empty state glued to the head.
+		".sd-bin-page .sd-bin-empty,.sd-bin-page .sd-bin-status{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}",
+		".sd-bin-glyph{display:inline-flex;align-items:center;justify-content:center}",
 		// The shell's Modal card is `min(380px, 100%)` — a third of what a session
 		// list needs, and the reason titles used to be squeezed into ellipses. The
 		// doubled class raises specificity so the override cannot lose a
@@ -398,6 +425,15 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 		["添加工作区", "Add workspace"],
 		["视图选项", "View options"]
 	];
+
+	/**
+	 * The id the sidebar's global panel list keys our row by, and the key the
+	 * `main` slot dispatches to. One value for both: `layout.selectPanel(id)`
+	 * throws unless a `main` panel is registered under exactly this key.
+	 */
+	var TRASH_PANEL_ID = "session-purge-trash";
+	/** Sits after the shipped global panels (plugins = 0, schedules = 10). */
+	var TRASH_PANEL_ORDER = 20;
 
 	/** 12.4 MB / 812 KB — no locale-dependent formatting surprises. */
 	function formatBytes(bytes) {
@@ -565,7 +601,76 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 		});
 	}
 
+	/**
+	 * Which entry shape a settings payload asks for. Pure, so the closed set
+	 * (`icon` | `menu`) is pinned by the regression suite rather than by a DOM.
+	 * @returns `"menu"` or `"icon"`; anything else is the shipped icon shape.
+	 */
+	function placementOf(settings) {
+		return settings !== null && settings !== undefined && settings.entryPlacement === "menu"
+			? "menu"
+			: "icon";
+	}
+
+	/**
+	 * Which entry shape the user picked. Read off the live settings rather than a
+	 * captured copy: the two stores hold the same host payload, and either may be
+	 * the one that has been refreshed most recently.
+	 */
+	function entryPlacement() {
+		var fromSettings = settingsStore.get().settings;
+		var settings = fromSettings !== null && fromSettings !== undefined
+			? fromSettings
+			: binStore.get().settings;
+		return placementOf(settings);
+	}
+
+	/** The slots service, read live (null on a shell that does not ship one). */
+	function liveSlots() {
+		try {
+			if (ctxRef !== null && typeof ctxRef.get === "function") {
+				return ctxRef.get("slots") || null;
+			}
+		} catch (e) {}
+		return null;
+	}
+
+	/** The layout service, read live (see `liveLocale` for why it is not cached). */
+	function liveLayout() {
+		try {
+			if (ctxRef !== null && typeof ctxRef.get === "function") {
+				return ctxRef.get("layout") || null;
+			}
+		} catch (e) {}
+		return null;
+	}
+
+	/** The bin glyph at the size the anchor asks for (the panel row passes 16/18). */
+	function iconMarkup(size) {
+		var edge = size === 18 ? 18 : 16;
+		return ICON.replace('width="16" height="16"', 'width="' + edge + '" height="' + edge + '"');
+	}
+
+	/**
+	 * Open the bin wherever the current placement says it lives.
+	 *
+	 * Menu mode selects the sidebar's own panel; if that registration is missing
+	 * (an older shell, or a slot the user's build does not declare) the select
+	 * throws and the dialog below still works — the entry is never a dead end.
+	 */
 	function openTrashPanel() {
+		if (entryPlacement() === "menu") {
+			var layout = liveLayout();
+			if (layout !== null && typeof layout.selectPanel === "function") {
+				try {
+					layout.selectPanel(TRASH_PANEL_ID);
+					void refreshBin();
+					return;
+				} catch (e) {
+					// Fall through: the dialog is the degraded-but-working shape.
+				}
+			}
+		}
 		binStore.set({ open: true, confirm: null, notice: null, rowErrors: {} });
 		void refreshBin();
 	}
@@ -1704,6 +1809,124 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 		};
 	}
 
+	// ── entry placement: icon on the workspace row, or a global panel row ────
+
+	/**
+	 * Register the menu shape: a glyph in `sidebar.panellist` and the page it
+	 * selects in `main`. Both registrations are disposers; the shell ignores a
+	 * slot it does not declare, in which case `dispose` stays null.
+	 * @returns a disposer (never null: an empty one when nothing registered).
+	 */
+	function installMenuEntry() {
+		if (ctxRef === null || typeof ctxRef.inject !== "function") return function () {};
+		var dispose = null;
+		try {
+			ctxRef.inject(["slots"], function (scope) {
+				if (scope === undefined || scope === null || scope.slots === undefined) return;
+				try {
+					var disposeRow = scope.slots.inject("sidebar.panellist", function () {
+						return scope.slots.register({
+							name: "sidebar.panellist",
+							id: TRASH_PANEL_ID,
+							order: TRASH_PANEL_ORDER,
+							// A thunk, so a language switch relabels the row.
+							label: function () { return tr("sidebar.trash"); }
+						}, TrashEntryGlyph);
+					});
+					var disposePage = scope.slots.inject("main", function () {
+						return scope.slots.register({
+							name: "main",
+							key: TRASH_PANEL_ID
+						}, TrashPage);
+					});
+					dispose = function () {
+						try { disposePage(); } catch (e) {}
+						try { disposeRow(); } catch (e) {}
+					};
+				} catch (e) {
+					dispose = null;
+				}
+			});
+		} catch (e) {
+			dispose = null;
+		}
+		return function () {
+			if (dispose !== null) {
+				try { dispose(); } catch (e) {}
+				dispose = null;
+			}
+		};
+	}
+
+	/**
+	 * Keep exactly one entry shape mounted, following the stored placement.
+	 *
+	 * The first decision waits for the settings read: installing the icon
+	 * optimistically would flash it for menu users on every reload, and a shell
+	 * that never answers falls back to the icon anyway.
+	 */
+	function installEntryPlacement() {
+		var current = null;
+		var disposeEntry = null;
+
+		function teardown() {
+			if (disposeEntry !== null) {
+				try { disposeEntry(); } catch (e) {}
+				disposeEntry = null;
+			}
+		}
+
+		/**
+		 * Hand the centre column back, but only when it is showing our page: a
+		 * placement flip must not kick the user out of the plugins page.
+		 */
+		function releasePage() {
+			var layout = liveLayout();
+			if (layout === null || typeof layout.selectPanel !== "function") return;
+			var info = layout.panelInfo;
+			var active = info !== undefined && info !== null && typeof info.getSnapshot === "function"
+				? info.getSnapshot().activePanelId
+				: null;
+			if (active !== TRASH_PANEL_ID) return;
+			try { layout.selectPanel(null); } catch (e) {}
+		}
+
+		function install(placement) {
+			teardown();
+			releasePage();
+			if (placement === "menu" && liveSlots() !== null) {
+				// A dialog left open would cover the page it just selected.
+				if (binStore.get().open === true) closeTrashPanel();
+				disposeEntry = installMenuEntry();
+				return;
+			}
+			// Either the user picked the icon, or this shell has no slot registry
+			// at all (a build older than the panel list): the icon always works.
+			disposeEntry = installSidebarTrashEntry();
+		}
+
+		function apply() {
+			var state = settingsStore.get();
+			var known = state.settings !== null && state.settings !== undefined;
+			if (!known && state.phase !== "failed") return;
+			var next = known ? entryPlacement() : "icon";
+			if (next === current) return;
+			current = next;
+			install(next);
+		}
+
+		apply();
+		var unsubscribe = settingsStore.subscribe(apply);
+		void refreshSettings();
+		return function () {
+			unsubscribe();
+			teardown();
+			// A disabled/updated plugin must not leave the centre column on a page
+			// whose registrations just went away.
+			releasePage();
+		};
+	}
+
 	// ── recycle-bin panel (own React root; Modal primitive when available) ───
 
 	var trashPanelHost = null; // { container, root }
@@ -1954,6 +2177,52 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 		for (var i = 0; i < leftovers.length; i++) leftovers[i].remove();
 	}
 
+	// ── menu placement: the sidebar's global panel list ──────────────────────
+	//
+	// Upstream pairs every row in that list with a `main` panel keyed by the same
+	// id (`layout.selectPanel` throws otherwise), so menu placement registers
+	// two cells: the glyph in `sidebar.panellist` and the page in `main`. The
+	// page reuses the dialog's body, so both shapes share one state machine.
+
+	/** The glyph the panel row injects; the row owns the button and its click. */
+	function TrashEntryGlyph(props) {
+		var size = props !== null && props !== undefined && typeof props.size === "number"
+			? props.size
+			: 16;
+		return React.createElement("span", {
+			className: "sd-icon sd-bin-glyph",
+			dangerouslySetInnerHTML: { __html: iconMarkup(size) }
+		});
+	}
+
+	/** The bin as a full page in the centre column. */
+	function TrashPage() {
+		var state = useStore(binStore);
+		React.useEffect(function () {
+			void refreshBin();
+		}, []);
+		return React.createElement("div", {
+			className: "sd-bin-page",
+			role: "region",
+			"aria-label": tr("bin.title")
+		}, [
+			React.createElement("div", { key: "inner", className: "sd-bin-page-inner" }, [
+				React.createElement("div", { key: "head", className: "sd-bin-page-head" }, [
+					React.createElement("span", {
+						key: "icon", className: "sd-icon",
+						dangerouslySetInnerHTML: { __html: ICON }
+					}),
+					React.createElement("span", { key: "title", className: "sd-bin-page-title" }, tr("bin.title")),
+					React.createElement("span", {
+						key: "count", className: "sd-bin-head-count"
+					}, tr("bin.count", { n: state.entries.length }))
+				]),
+				React.createElement("div", { key: "body", className: "sd-bin-page-body" },
+					React.createElement(TrashPanelBody, { state: state }))
+			])
+		]);
+	}
+
 	// ── settings page ────────────────────────────────────────────────────────
 	//
 	// One page in the shell's Settings panel (`settings.section`). The shell owns
@@ -2010,6 +2279,41 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 				"aria-pressed": active,
 				disabled: props.disabled === true,
 				onClick: function () { if (!active) props.onChange(Number(option.value)); }
+			}, option.label);
+		}));
+	}
+
+	/**
+	 * Where the bin entry lives. Both shapes read the same store; the choice only
+	 * changes the surface the user meets (see the settings row's hint).
+	 */
+	function PlacementControl(props) {
+		var Segmented = primitive("SegmentedControl");
+		var options = [
+			{ value: "icon", label: tr("settings.entryPlacement.icon") },
+			{ value: "menu", label: tr("settings.entryPlacement.menu") }
+		];
+		if (Segmented !== null) {
+			return React.createElement(Segmented, {
+				id: "session-purge-placement",
+				value: props.value,
+				options: options,
+				onChange: props.onChange,
+				label: tr("settings.entryPlacement"),
+				disabled: props.disabled === true
+			});
+		}
+		return React.createElement("div", {
+			className: "sd-set-segment", role: "group", "aria-label": tr("settings.entryPlacement")
+		}, options.map(function (option) {
+			var active = option.value === props.value;
+			return React.createElement("button", {
+				key: option.value,
+				type: "button",
+				className: "sd-set-segment-btn",
+				"aria-pressed": active,
+				disabled: props.disabled === true,
+				onClick: function () { if (!active) props.onChange(option.value); }
 			}, option.label);
 		}));
 	}
@@ -2130,6 +2434,14 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 					value: settings.sweepIntervalHours,
 					disabled: busy || !autoClean,
 					onChange: function (next) { void saveSetting("sweepIntervalHours", next); }
+				})));
+
+			children.push(settingsRow("placement",
+				tr("settings.entryPlacement"), tr("settings.entryPlacementHint"),
+				React.createElement(PlacementControl, {
+					value: settings.entryPlacement === "menu" ? "menu" : "icon",
+					disabled: busy,
+					onChange: function (next) { void saveSetting("entryPlacement", next); }
 				})));
 
 			var actions = [
@@ -2472,9 +2784,11 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 		// and this plugin reaches it at the DOM level (see the comment block
 		// above the injection helpers).
 		ctx.effect(installSessionMenuInjection, "session-purge: session menu injection");
-		// The fourth icon on the workspace row, plus the panel it opens. Both are
-		// self-healing DOM mounts: upstream has no seat there (design.md §2.1).
-		ctx.effect(installSidebarTrashEntry, "session-purge: sidebar entry");
+		// The entry shape follows the stored placement: the fourth icon on the
+		// workspace row (a self-healing DOM mount, upstream has no seat there —
+		// design.md §2.1), or a row in the sidebar's global panel list backed by
+		// a real `main` page (design.md §7.5).
+		ctx.effect(installEntryPlacement, "session-purge: sidebar entry");
 		ctx.effect(installTrashPanelMount, "session-purge: trash panel");
 		// The settings page registers into the shell's settings domain; a shell
 		// without it keeps working (the host route remains the only way in).
@@ -2523,6 +2837,9 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 		binStore: binStore,
 		collectTrashAnchorCandidates: collectTrashAnchorCandidates,
 		pickTrashAnchor: pickTrashAnchor,
+		placementOf: placementOf,
+		iconMarkup: iconMarkup,
+		TRASH_PANEL_ID: TRASH_PANEL_ID,
 		formatBytes: formatBytes,
 		formatRelativeTime: formatRelativeTime,
 		shortSessionId: shortSessionId,

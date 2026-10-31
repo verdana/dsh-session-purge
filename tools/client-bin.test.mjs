@@ -119,6 +119,30 @@ test('collectTrashAnchorCandidates keeps the documented priority order', () => {
     assert.equal(english[0].index, 0);
 });
 
+// ── entry placement ───────────────────────────────────────────────────────
+
+test('placementOf follows the closed set and defaults to the icon shape', () => {
+    assert.equal(BIN.placementOf({ entryPlacement: 'menu' }), 'menu');
+    assert.equal(BIN.placementOf({ entryPlacement: 'icon' }), 'icon');
+    // Anything the host might hand us that is not the menu value keeps the
+    // shipped shape, so a hand-edited settings file cannot blank the entry.
+    assert.equal(BIN.placementOf({ entryPlacement: 'sidebar' }), 'icon');
+    assert.equal(BIN.placementOf({}), 'icon');
+    assert.equal(BIN.placementOf(null), 'icon');
+    assert.equal(BIN.placementOf(undefined), 'icon');
+});
+
+test('iconMarkup keeps the glyph geometry at the size the panel row asks for', () => {
+    // The row passes 16 while wide and 18 in the collapsed rail (same as the
+    // shipped global-panel glyphs).
+    assert.match(BIN.iconMarkup(16), /^<svg width="16" height="16"/);
+    assert.match(BIN.iconMarkup(18), /^<svg width="18" height="18"/);
+    assert.match(BIN.iconMarkup(undefined), /^<svg width="16" height="16"/);
+    // The page id is shared by the panel row and the `main` key; a mismatch makes
+    // layout.selectPanel throw, so it is pinned here.
+    assert.equal(BIN.TRASH_PANEL_ID, 'session-purge-trash');
+});
+
 // ── settings-entry launchers ───────────────────────────────────────────────
 
 /** One fake launcher button for the DOM-free trigger lookup. */

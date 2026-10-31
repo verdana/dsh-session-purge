@@ -158,24 +158,31 @@ test('normalizeSettings clamps numbers and keeps only known fields', () => {
     });
     assert.deepEqual(normalized, {
         schema: 1, autoClean: false, retentionDays: 90, sweepOnBoot: false, sweepIntervalHours: 168,
+        entryPlacement: 'icon',
     });
     // A retention value outside the offered choices falls back, never guesses.
     assert.equal(normalizeSettings({ retentionDays: 12 }).retentionDays, 30);
     // Numeric bounds are clamped to something usable rather than trusted.
     assert.equal(normalizeSettings({ sweepIntervalHours: 0 }).sweepIntervalHours, 1);
     assert.equal(normalizeSettings({ sweepIntervalHours: 2.5 }).sweepIntervalHours, 6);
+    // The placement is a closed set: anything else is the shipped icon shape.
+    assert.equal(normalizeSettings({ entryPlacement: 'menu' }).entryPlacement, 'menu');
+    assert.equal(normalizeSettings({ entryPlacement: 'sidebar' }).entryPlacement, 'icon');
 });
 
 test('validateSettingsPatch accepts a valid subset and refuses bad values', () => {
     assert.deepEqual(validateSettingsPatch({ retentionDays: 7 }), { ok: true, value: { retentionDays: 7 } });
     assert.deepEqual(validateSettingsPatch({ autoClean: false, sweepIntervalHours: 1 }),
         { ok: true, value: { autoClean: false, sweepIntervalHours: 1 } });
+    assert.deepEqual(validateSettingsPatch({ entryPlacement: 'menu' }),
+        { ok: true, value: { entryPlacement: 'menu' } });
     // Unknown keys are ignored so a newer client cannot brick an older host.
     assert.deepEqual(validateSettingsPatch({ future: 1 }), { ok: true, value: {} });
 
     for (const bad of [{ autoClean: 'yes' }, { sweepOnBoot: 1 }, { retentionDays: 12 },
         { retentionDays: '30' }, { sweepIntervalHours: 0 }, { sweepIntervalHours: 200 },
-        { sweepIntervalHours: 3.5 }, null, 'nope', []]) {
+        { sweepIntervalHours: 3.5 }, { entryPlacement: 'sidebar' }, { entryPlacement: null },
+        null, 'nope', []]) {
         const result = validateSettingsPatch(bad);
         assert.equal(result.ok, false, `${JSON.stringify(bad)} must be refused`);
         assert.equal(result.code, 'settings-invalid');

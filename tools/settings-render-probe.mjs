@@ -221,6 +221,15 @@ report.afterOpenBin = {
     requests: await page.evaluate(() => window.__requests.slice()),
 };
 
+// 6. the entry-placement picker writes its own field.
+await page.evaluate(() => {
+    const row = [...document.querySelectorAll('.sd-set-row')]
+        .find((node) => node.querySelector('.sd-set-label')?.textContent === '入口位置');
+    [...row.querySelectorAll('.sd-set-segment-btn')].find((button) => button.textContent === '菜单').click();
+});
+await page.waitForTimeout(500);
+report.afterPlacement = await readPage();
+
 // ── assertions (exit gate) ─────────────────────────────────────────────────
 // Read the request log once, at the end: every write the flow issued is in it.
 const allRequests = await page.evaluate(() => window.__requests.slice());
@@ -236,10 +245,15 @@ check('no page error while driving the page', pageErrors.length === 0, pageError
 check('the page renders a heading and the stats line',
     report.initial.heading === '回收站' && /共 3 个会话/.test(report.initial.stats) && /2 小时前/.test(report.initial.stats),
     JSON.stringify(report.initial.stats));
-check('all four settings rows are present with labels and hints',
-    report.initial.rows.length === 4
-    && report.initial.rows.map((row) => row.label).join('|') === '自动清理回收站|保留时长|启动时清理一次|清理周期（小时）',
+check('all five settings rows are present with labels and hints',
+    report.initial.rows.length === 5
+    && report.initial.rows.map((row) => row.label).join('|') === '自动清理回收站|保留时长|启动时清理一次|清理周期（小时）|入口位置'
+    && report.initial.rows.every((row) => typeof row.hint === 'string' && row.hint.length > 0),
     JSON.stringify(report.initial.rows.map((row) => row.label)));
+check('the entry-placement picker offers both shapes and marks the stored one',
+    report.initial.rows[4].segments.map((s) => s.text).join('|') === '图标|菜单'
+    && report.initial.rows[4].segments[0].pressed === 'true',
+    JSON.stringify(report.initial.rows[4]));
 check('the fallback controls render with the stored values',
     report.initial.rows[0].switch.checked === 'true'
     && report.initial.rows[1].segments.map((s) => s.text).join('|') === '7 天|30 天|90 天|365 天|永久'
@@ -272,6 +286,11 @@ check('the retention picker writes retentionDays = 90',
     allRequests.some((r) => r.method === 'POST' && r.body !== null && r.body.retentionDays === 90)
     && report.afterRetention.rows[1].segments[2].pressed === 'true',
     JSON.stringify(report.afterRetention.rows[1].segments));
+check('the entry-placement picker writes only entryPlacement and adopts the reply',
+    allRequests.some((r) => r.method === 'POST' && r.path === '/session-purge/settings'
+        && r.body !== null && r.body.entryPlacement === 'menu' && Object.keys(r.body).length === 1)
+    && report.afterPlacement.rows[4].segments[1].pressed === 'true',
+    JSON.stringify(report.afterPlacement.rows[4]));
 check('the interval field writes an in-range value',
     allRequests.some((r) => r.method === 'POST' && r.body !== null && r.body.sweepIntervalHours === 12),
     JSON.stringify(allRequests.filter((r) => r.body !== null).map((r) => r.body)));
