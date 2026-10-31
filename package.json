@@ -1,6 +1,6 @@
 {
   "name": "dsh-session-purge",
-  "version": "0.5.5",
+  "version": "0.5.6",
   "description": "A recycle bin for DSH session deletion: deleting a session moves it to a bin where it can be restored, and space is reclaimed on permanent delete or on a retention schedule.",
   "type": "module",
   "main": "lib/index.js",
