@@ -624,6 +624,15 @@ ctx.inject(['slots'], (scope) => {
   （20px / 500 / 28px），所以看齐「插件 / 自动化任务」。列表与 `.sd-bin-body` 在页面里都改成
   `overflow:visible`：弹窗那套"列表在卡片内滚动"的做法照搬过来会多出一根内部滚动条。
   空态/加载态用 `min-height:calc(100vh - 220px)` 居中，把底栏压到视口底部附近，而不是浮在中间。
+- 条目行（仅整页）：`renderBinRow(entry, state, "page")` 与弹窗共用组件，只是多一个 variant。
+  行是 2×3 的 grid（`title title actions` / `meta id actions`），`.sd-bin-row-main` 用
+  `display:contents` 让标题与元信息落进不同格子；三档字号/颜色分别是 15px·600·主色、
+  12px·次级色、11px·等宽·三级色。**id 在整页里完整渲染**（`title` 里也存一份），弹窗仍是
+  `shortSessionId` 塞进 meta——窄卡片放不下 40 个字符。
+- 宽度适配用**容器查询**（`.sd-bin-page-inner{container-type:inline-size}` + `@container sd-bin`）：
+  可用宽度由侧边栏决定（280px 与 56px 轨道差 224px），视口查询会判错。容器窄于 780px 时
+  grid 退化为单列（标题 → 元信息 → ID → 按钮）。整页行内的「真实删除」改成红字按钮
+  （hover 上底色），确认条与弹窗保持实心红——一屏几十个实心红块会盖过标题层级。
 - 设置项 `entryPlacement`（`icon` 默认 / `menu`）走 `lib/index.js` 的
   `SETTINGS_DEFAULTS` → `normalizeSettings`（闭集，未知值回 icon）→ `validateSettingsPatch`
   （严格拒绝），与其余四个字段同一套读写路径；设置页用 `SegmentedControl`（无原语时用
