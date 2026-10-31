@@ -104,6 +104,27 @@ try {
         ((await page.locator('.sd-bin-page-title').first().textContent()) || '').trim() === '回收站');
     check('没有弹窗遮罩', (await page.locator('.sd-bin-mask, .sd-bin-card').count()) === 0);
 
+    // 标题必须和 shell 自己的全局页面同字号（插件页实测 20px / 500 / 28px）。
+    const titleMetrics = await page.evaluate(() => {
+        const style = getComputedStyle(document.querySelector('.sd-bin-page-title'));
+        return { size: style.fontSize, weight: style.fontWeight, lineHeight: style.lineHeight };
+    });
+    check('标题与插件页同字号', titleMetrics.size === '20px' && titleMetrics.weight === '500'
+        && titleMetrics.lineHeight === '28px', JSON.stringify(titleMetrics));
+
+    // 滚动只能来自页面本身：列表再长也不许自建滚动容器（否则会出现第二条滚动条）。
+    const scrollOwners = await page.evaluate(() => {
+        const pageEl = document.querySelector('.sd-bin-page');
+        const list = document.querySelector('.sd-bin-page .sd-bin-list');
+        return {
+            pageOverflow: getComputedStyle(pageEl).overflowY,
+            listOverflow: list === null ? null : getComputedStyle(list).overflowY,
+        };
+    });
+    check('列表不自建滚动条', scrollOwners.listOverflow === null || scrollOwners.listOverflow === 'visible',
+        JSON.stringify(scrollOwners));
+    check('页面是唯一滚动容器', scrollOwners.pageOverflow === 'auto', String(scrollOwners.pageOverflow));
+
     const pageBox = await binPage.boundingBox();
     check('页面占满中间栏', pageBox !== null && pageBox.width > 900, JSON.stringify(pageBox));
 

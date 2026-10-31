@@ -291,20 +291,26 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 		// list needs, and the reason titles used to be squeezed into ellipses. The
 		// doubled class raises specificity so the override cannot lose a
 		// stylesheet-order race with the shell's own CSS.
-		// The menu shape's page: the centre column is a flex track, so `height:100%`
-		// plus a shrinkable body is what gives the list a definite height to
-		// overflow against (the same reasoning as `.sd-bin-body` below).
-		".sd-bin-page{display:flex;height:100%;min-height:0;padding:28px 32px 24px;box-sizing:border-box;overflow:hidden}",
-		".sd-bin-page-inner{display:flex;flex-direction:column;gap:14px;flex:1;min-height:0;width:100%;max-width:1080px;margin:0 auto}",
-		".sd-bin-page-head{display:flex;align-items:center;gap:8px;flex:none;font-size:15px;font-weight:600;color:var(--dsw-alias-label-primary,#e8ecff)}",
+		// The menu shape's page follows the shell's own global pages (see
+		// `ui-plugin-manager`'s `.page`): the page itself is the scroll container,
+		// so a long list uses the ordinary page scrollbar instead of a nested box,
+		// and the title uses the shipped page-title metrics (20px / 500 / 28px)
+		// so it sits level with 插件 / 自动化任务.
+		".sd-bin-page{display:flex;flex-direction:column;align-items:center;height:100%;box-sizing:border-box;padding:0 clamp(24px,4vw,48px) 48px;overflow:auto}",
+		".sd-bin-page-inner{display:flex;flex-direction:column;gap:24px;width:100%;max-width:1080px;padding-top:28px;flex:0 0 auto}",
+		".sd-bin-page-head{display:flex;align-items:center;gap:8px;flex:none;margin:0;font-size:20px;font-weight:500;line-height:28px;color:var(--dsw-alias-label-primary,#e8ecff)}",
+		".sd-bin-page-head .sd-bin-head-count{margin-left:2px;font-size:13px}",
 		".sd-bin-page-head .sd-icon{color:var(--dsw-alias-label-secondary,#8a93a6)}",
-		".sd-bin-page-body{display:flex;flex-direction:column;flex:1;min-height:0}",
-		// The dialog caps its list against the viewport; a page hands the height to
-		// the flex track instead.
-		".sd-bin-page .sd-bin-list{max-height:none;margin-top:0}",
+		// The dialog caps its list against the viewport; a page lets the list grow
+		// and scrolls as a document, so neither the body nor the list may keep a
+		// scroll container of its own (`overflow:auto` there shows a second
+		// scrollbar inside the page's own one).
+		".sd-bin-page .sd-bin-list{max-height:none;overflow:visible}",
+		".sd-bin-page .sd-bin-body{overflow:visible}",
 		// A page has a whole column of free space; the dialog's 30px padding would
-		// leave the empty state glued to the head.
-		".sd-bin-page .sd-bin-empty,.sd-bin-page .sd-bin-status{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}",
+		// leave the empty state glued to the head. `calc` keeps the footer near the
+		// bottom of the viewport instead of floating in the middle of it.
+		".sd-bin-page .sd-bin-empty,.sd-bin-page .sd-bin-status{min-height:calc(100vh - 220px);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}",
 		".sd-bin-glyph{display:inline-flex;align-items:center;justify-content:center}",
 		// The shell's Modal card is `min(380px, 100%)` — a third of what a session
 		// list needs, and the reason titles used to be squeezed into ellipses. The
