@@ -619,15 +619,17 @@ ctx.inject(['slots'], (scope) => {
 - `openTrashPanel()` 成为唯一入口：菜单形态先 `selectPanel(TRASH_PANEL_ID)`，**抛错就回落弹窗**
   （面板页没注册成功时不会变成死路）；图标形态照旧开 `Modal`。toast 与设置页的「打开回收站」都走它，
   所以「从哪进都是同一种形态」，不需要用户记两套规则。
-- 布局：`.sd-bin-page` 是 `height:100%` 的 flex 列，`.sd-bin-page-body` 把高度预算传给
-  `.sd-bin-body`（同 §7.2 的理由），列表 `max-height` 在页面里解除；空态/加载态在页面里
-  `flex:1` + 居中，避免一大片空白把文案顶在标题下面。
+- 布局：照抄上游全局页面的形状（`ui-plugin-manager` 的 `.page`）——`.sd-bin-page` 自己就是滚动容器
+  （`height:100%` + `overflow:auto` + 左右 `clamp(24px,4vw,48px)` 留白），标题用页标题的度量
+  （20px / 500 / 28px），所以看齐「插件 / 自动化任务」。列表与 `.sd-bin-body` 在页面里都改成
+  `overflow:visible`：弹窗那套"列表在卡片内滚动"的做法照搬过来会多出一根内部滚动条。
+  空态/加载态用 `min-height:calc(100vh - 220px)` 居中，把底栏压到视口底部附近，而不是浮在中间。
 - 设置项 `entryPlacement`（`icon` 默认 / `menu`）走 `lib/index.js` 的
   `SETTINGS_DEFAULTS` → `normalizeSettings`（闭集，未知值回 icon）→ `validateSettingsPatch`
   （严格拒绝），与其余四个字段同一套读写路径；设置页用 `SegmentedControl`（无原语时用
   `.sd-set-segment` 兜底）呈现，改完立即重挂入口，不重启、不刷新。
 
-**验证**：`tools/entry-placement-probe.mjs`（隔离 rc.5 实例，21 项断言）覆盖
+**验证**：`tools/entry-placement-probe.mjs`（隔离 rc.5 实例，24 项断言）覆盖
 「图标 → 设置页切菜单 → 导航行/顺序/选中态/整页/行宽/折叠轨道 → 复原 → 切回图标」；
 纯逻辑（`placementOf`、`iconMarkup`、id 一致性）由 `tools/client-bin.test.mjs` 覆盖。
 
