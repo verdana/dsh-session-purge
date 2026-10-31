@@ -1824,13 +1824,19 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 	 * @returns a disposer (never null: an empty one when nothing registered).
 	 */
 	function installMenuEntry() {
-		if (ctxRef === null || typeof ctxRef.inject !== "function") return function () {};
+		if (ctxRef === null || typeof ctxRef.inject !== "function") return null;
 		var dispose = null;
+		// `slots.inject` may hand us the scope later than the caller's teardown.
+		// `cancelled` makes that late registration undo itself instead of leaving a
+		// row behind in a shape the user has already switched away from.
+		var cancelled = false;
 		try {
 			ctxRef.inject(["slots"], function (scope) {
 				if (scope === undefined || scope === null || scope.slots === undefined) return;
+				var disposeRow = null;
+				var disposePage = null;
 				try {
-					var disposeRow = scope.slots.inject("sidebar.panellist", function () {
+					disposeRow = scope.slots.inject("sidebar.panellist", function () {
 						return scope.slots.register({
 							name: "sidebar.panellist",
 							id: TRASH_PANEL_ID,
@@ -1839,7 +1845,7 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 							label: function () { return tr("sidebar.trash"); }
 						}, TrashEntryGlyph);
 					});
-					var disposePage = scope.slots.inject("main", function () {
+					disposePage = scope.slots.inject("main", function () {
 						return scope.slots.register({
 							name: "main",
 							key: TRASH_PANEL_ID
@@ -1849,7 +1855,16 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 						try { disposePage(); } catch (e) {}
 						try { disposeRow(); } catch (e) {}
 					};
+					if (cancelled) {
+						dispose();
+						dispose = null;
+					}
 				} catch (e) {
+					// The row alone is a trap: clicking it calls selectPanel(id) for a
+					// main panel that never registered, and the shell throws. Undo
+					// whatever half of the pair actually took effect.
+					if (disposePage !== null) { try { disposePage(); } catch (e2) {} }
+					if (disposeRow !== null) { try { disposeRow(); } catch (e2) {} }
 					dispose = null;
 				}
 			});
@@ -1857,11 +1872,29 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 			dispose = null;
 		}
 		return function () {
+			cancelled = true;
 			if (dispose !== null) {
 				try { dispose(); } catch (e) {}
 				dispose = null;
 			}
 		};
+	}
+
+	/**
+	 * The placement state machine's next move. Pure, so the three awkward cases
+	 * (still loading, a failed read, a ready payload without settings) are pinned
+	 * by the regression suite instead of by watching the sidebar.
+	 * @param state - the settings store snapshot.
+	 * @returns "icon" | "menu" to mount, or null to keep waiting.
+	 */
+	function entryInstallDecision(state) {
+		if (state === null || state === undefined) return "icon";
+		var known = state.settings !== null && state.settings !== undefined;
+		// idle / loading 时先不装，避免菜单用户刷新时闪一下图标；但**只要请求
+		// 已经终结**（成功或失败）就必须装一个出来——ready 而载荷里没有 settings
+		// 是异常宿主，此时"再等等"会变成"永远没有入口"。
+		if (!known && state.phase !== "failed" && state.phase !== "ready") return null;
+		return known ? placementOf(state.settings) : "icon";
 	}
 
 	/**
@@ -1903,20 +1936,21 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 			if (placement === "menu" && liveSlots() !== null) {
 				// A dialog left open would cover the page it just selected.
 				if (binStore.get().open === true) closeTrashPanel();
-				disposeEntry = installMenuEntry();
-				return;
+				var menuDispose = installMenuEntry();
+				if (menuDispose !== null) {
+					disposeEntry = menuDispose;
+					return;
+				}
 			}
-			// Either the user picked the icon, or this shell has no slot registry
-			// at all (a build older than the panel list): the icon always works.
+			// Either the user picked the icon, or this shell cannot host the menu
+			// shape (no slot registry, or no way to inject into it): the icon always
+			// works, so the entry never disappears.
 			disposeEntry = installSidebarTrashEntry();
 		}
 
 		function apply() {
-			var state = settingsStore.get();
-			var known = state.settings !== null && state.settings !== undefined;
-			if (!known && state.phase !== "failed") return;
-			var next = known ? entryPlacement() : "icon";
-			if (next === current) return;
+			var next = entryInstallDecision(settingsStore.get());
+			if (next === null || next === current) return;
 			current = next;
 			install(next);
 		}
@@ -2844,6 +2878,8 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 		collectTrashAnchorCandidates: collectTrashAnchorCandidates,
 		pickTrashAnchor: pickTrashAnchor,
 		placementOf: placementOf,
+		entryInstallDecision: entryInstallDecision,
+		installMenuEntry: installMenuEntry,
 		iconMarkup: iconMarkup,
 		TRASH_PANEL_ID: TRASH_PANEL_ID,
 		formatBytes: formatBytes,

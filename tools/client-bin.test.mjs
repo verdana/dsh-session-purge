@@ -132,6 +132,65 @@ test('placementOf follows the closed set and defaults to the icon shape', () => 
     assert.equal(BIN.placementOf(undefined), 'icon');
 });
 
+test('entryInstallDecision waits while loading, never strands the entry', () => {
+    // 请求还在路上：先不装，免得菜单用户刷新时闪一下图标。
+    assert.equal(BIN.entryInstallDecision({ phase: 'idle', settings: null }), null);
+    assert.equal(BIN.entryInstallDecision({ phase: 'loading', settings: null }), null);
+    // 读到 menu 就装菜单，读到 icon/未知值就装图标。
+    assert.equal(BIN.entryInstallDecision({ phase: 'ready', settings: { entryPlacement: 'menu' } }), 'menu');
+    assert.equal(BIN.entryInstallDecision({ phase: 'ready', settings: {} }), 'icon');
+    // 失败时按默认图标装，而不是"再等等"。
+    assert.equal(BIN.entryInstallDecision({ phase: 'failed', settings: null }), 'icon');
+    // 成功但载荷里没有 settings（异常宿主/被改坏的响应）：同样要装一个出来，
+    // 否则侧栏会彻底没有回收站入口。
+    assert.equal(BIN.entryInstallDecision({ phase: 'ready', settings: null }), 'icon');
+    assert.equal(BIN.entryInstallDecision(null), 'icon');
+});
+
+test('a failed main registration rolls back the sidebar row', () => {
+    // 只注册到行、页面失败是最坏的一种半吊子状态：点击行会让 shell 抛错。
+    const disposals = [];
+    clientModule.__testMountLocale({
+        get: () => undefined,
+        inject: (names, cb) => cb({
+            slots: {
+                inject: (key, factory) => factory(),
+                register: (options) => {
+                    if (options.name === 'main') throw new Error('layout is not here');
+                    return () => disposals.push(options.name);
+                },
+            },
+        }),
+    });
+    const dispose = BIN.installMenuEntry();
+    assert.equal(typeof dispose, 'function');
+    assert.deepEqual(disposals, ['sidebar.panellist']);
+    dispose(); // 幂等：失败的安装不重复撤销
+    assert.deepEqual(disposals, ['sidebar.panellist']);
+    clientModule.__testMountLocale({ get: () => undefined });
+});
+
+test('a cancelled menu install undoes a late registration', () => {
+    // slots 可能在 teardown 之后才就绪：迟到的注册必须自我撤销，不能在图标
+    // 形态下再冒出一行。
+    let late = null;
+    const disposals = [];
+    clientModule.__testMountLocale({
+        get: () => undefined,
+        inject: (names, cb) => { late = cb; },
+    });
+    const dispose = BIN.installMenuEntry();
+    dispose();
+    late({
+        slots: {
+            inject: (key, factory) => factory(),
+            register: (options) => () => disposals.push(options.name),
+        },
+    });
+    assert.deepEqual(disposals.sort(), ['main', 'sidebar.panellist']);
+    clientModule.__testMountLocale({ get: () => undefined });
+});
+
 test('iconMarkup keeps the glyph geometry at the size the panel row asks for', () => {
     // The row passes 16 while wide and 18 in the collapsed rail (same as the
     // shipped global-panel glyphs).
