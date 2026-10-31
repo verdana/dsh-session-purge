@@ -133,7 +133,58 @@ try {
     const rowBox = await page.locator('.sd-bin-page .sd-bin-row').first().boundingBox();
     check('行宽用满页面（远宽于 760px 弹窗）', rowBox !== null && rowBox.width > 900, JSON.stringify(rowBox));
 
+    // ── 3b. 页面的信息层级与完整 id ──────────────────────────────────────────
+    const hierarchy = await page.evaluate(() => {
+        const title = document.querySelector('.sd-bin-page .sd-bin-row-title');
+        const meta = document.querySelector('.sd-bin-page .sd-bin-row-meta');
+        const id = document.querySelector('.sd-bin-page .sd-bin-row-id');
+        const value = document.querySelector('.sd-bin-page .sd-bin-row-id-value');
+        const titleStyle = getComputedStyle(title);
+        return {
+            headGlyphs: document.querySelectorAll('.sd-bin-page-head svg').length,
+            title: { size: titleStyle.fontSize, weight: titleStyle.fontWeight, color: titleStyle.color },
+            meta: { size: getComputedStyle(meta).fontSize, color: getComputedStyle(meta).color },
+            id: {
+                text: value?.textContent ?? null,
+                size: getComputedStyle(value).fontSize,
+                overflow: id.scrollWidth - id.clientWidth,
+            },
+        };
+    });
+    check('页面标题不带图标', hierarchy.headGlyphs === 0, `svg=${hierarchy.headGlyphs}`);
+    check('标题（15/600）与元信息（12px）拉开层级',
+        hierarchy.title.size === '15px' && hierarchy.title.weight === '600' && hierarchy.meta.size === '12px',
+        JSON.stringify({ title: hierarchy.title, meta: hierarchy.meta }));
+    check('标题与元信息颜色不同', hierarchy.title.color !== hierarchy.meta.color,
+        `${hierarchy.title.color} vs ${hierarchy.meta.color}`);
+    check('会话 id 完整展示（≥32 字符且无横向溢出）',
+        hierarchy.id.text !== null && hierarchy.id.text.length >= 32 && hierarchy.id.overflow <= 1,
+        JSON.stringify(hierarchy.id));
+    check('id 用更小的字号', hierarchy.id.size === '11px', hierarchy.id.size);
+
     await page.screenshot({ path: process.env.TEMP ? `${process.env.TEMP}/entry-page-rows.png` : 'entry-page-rows.png' });
+
+    // ── 3c. 窄容器退化为单列（容器查询按页面真实宽度判断）───────────────────
+    await page.setViewportSize({ width: 1024, height: 800 });
+    await page.waitForTimeout(900);
+    const narrow = await page.evaluate(() => {
+        const row = document.querySelector('.sd-bin-page .sd-bin-row');
+        const actions = row.querySelector('.sd-bin-row-actions').getBoundingClientRect();
+        const id = row.querySelector('.sd-bin-row-id').getBoundingClientRect();
+        const title = row.querySelector('.sd-bin-row-title').getBoundingClientRect();
+        return {
+            columns: getComputedStyle(row).gridTemplateColumns.trim().split(/\s+/).length,
+            idTop: Math.round(id.top),
+            actionsTop: Math.round(actions.top),
+            titleTop: Math.round(title.top),
+        };
+    });
+    check('窄容器下退化为单列（按钮落到文字下方）',
+        narrow.columns === 1 && narrow.actionsTop > narrow.idTop && narrow.idTop > narrow.titleTop,
+        JSON.stringify(narrow));
+    await page.screenshot({ path: process.env.TEMP ? `${process.env.TEMP}/entry-page-narrow.png` : 'entry-page-narrow.png' });
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.waitForTimeout(600);
 
     // ── 4. 折叠轨道只剩图标 ────────────────────────────────────────────────
     await page.locator('button[aria-label="收起侧边栏"], button[aria-label="Collapse sidebar"]').first().click();
@@ -145,12 +196,17 @@ try {
     await page.waitForTimeout(900);
 
     // ── 5. 复原刚才那条，再切回图标 ────────────────────────────────────────
+    // 实例里可能本来就有别的条目（手工造样例时），所以只断言"少了一条"，
+    // 不假设回收站会被清空。
     const restore = page.locator('.sd-bin-page .sd-bin-row button')
         .filter({ hasText: /^复原$|^Restore$/ }).first();
     if ((await restore.count()) > 0) {
+        const beforeRestore = await page.locator('.sd-bin-page .sd-bin-row').count();
         await restore.click();
         await page.waitForTimeout(2_000);
-        check('页面里的「复原」可用', (await page.locator('.sd-bin-page .sd-bin-row').count()) === 0);
+        const afterRestore = await page.locator('.sd-bin-page .sd-bin-row').count();
+        check('页面里的「复原」可用', afterRestore === beforeRestore - 1,
+            `${beforeRestore} → ${afterRestore}`);
     }
 
     await page.locator('.sd-bin-policy-btn').first().click();

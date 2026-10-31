@@ -297,16 +297,47 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 		// and the title uses the shipped page-title metrics (20px / 500 / 28px)
 		// so it sits level with 插件 / 自动化任务.
 		".sd-bin-page{display:flex;flex-direction:column;align-items:center;height:100%;box-sizing:border-box;padding:0 clamp(24px,4vw,48px) 48px;overflow:auto}",
-		".sd-bin-page-inner{display:flex;flex-direction:column;gap:24px;width:100%;max-width:1080px;padding-top:28px;flex:0 0 auto}",
-		".sd-bin-page-head{display:flex;align-items:center;gap:8px;flex:none;margin:0;font-size:20px;font-weight:500;line-height:28px;color:var(--dsw-alias-label-primary,#e8ecff)}",
-		".sd-bin-page-head .sd-bin-head-count{margin-left:2px;font-size:13px}",
-		".sd-bin-page-head .sd-icon{color:var(--dsw-alias-label-secondary,#8a93a6)}",
+		// Container queries, not viewport ones: the width this page actually gets
+		// depends on the sidebar (280px wide vs a 56px rail), so the row layout has
+		// to key off the column, not the window.
+		".sd-bin-page-inner{display:flex;flex-direction:column;gap:24px;width:100%;max-width:1080px;padding-top:28px;flex:0 0 auto;container-type:inline-size;container-name:sd-bin}",
+		".sd-bin-page-head{display:flex;align-items:center;gap:10px;flex:none;margin:0;font-size:20px;font-weight:500;line-height:28px;color:var(--dsw-alias-label-primary,#e8ecff)}",
+		// The count reads as a quiet pill next to the heading, not as a second title.
+		".sd-bin-page-head .sd-bin-head-count{margin:0;padding:2px 9px;border-radius:999px;background:var(--dsw-alias-bg-overlay-2,rgba(127,127,127,.12));font-size:12px;font-weight:400;line-height:18px;color:var(--dsw-alias-label-secondary,#8a93a6)}",
 		// The dialog caps its list against the viewport; a page lets the list grow
 		// and scrolls as a document, so neither the body nor the list may keep a
 		// scroll container of its own (`overflow:auto` there shows a second
 		// scrollbar inside the page's own one).
-		".sd-bin-page .sd-bin-list{max-height:none;overflow:visible}",
+		".sd-bin-page .sd-bin-list{max-height:none;overflow:visible;display:flex;flex-direction:column}",
 		".sd-bin-page .sd-bin-body{overflow:visible}",
+		// ── page rows ────────────────────────────────────────────────────────
+		// Three tiers per entry: title (15/600, primary), meta (12, secondary),
+		// full id (11 mono, tertiary). The id is never truncated here — a page has
+		// the width for it, and a shortened id is useless when you need to name the
+		// session in a bug report. `display:contents` lifts the main column's
+		// children into the row grid so title and meta can take different columns.
+		".sd-bin-page .sd-bin-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;grid-template-areas:\"title title actions\" \"meta id actions\";column-gap:24px;row-gap:6px;align-items:start;padding:14px;border-radius:10px;border-bottom:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.14))}",
+		".sd-bin-page .sd-bin-row:last-child{border-bottom:none}",
+		".sd-bin-page .sd-bin-row:hover{background:var(--dsw-alias-bg-overlay-2,rgba(127,127,127,.08))}",
+		".sd-bin-page .sd-bin-row-main{display:contents}",
+		".sd-bin-page .sd-bin-row-title{grid-area:title;font-size:15px;font-weight:600;line-height:22px;color:var(--dsw-alias-label-primary,#e8ecff);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
+		".sd-bin-page .sd-bin-row-meta{grid-area:meta;margin:0;display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary,#8a93a6)}",
+		".sd-bin-page .sd-bin-row-meta > span{max-width:none;white-space:normal;overflow-wrap:anywhere;font-size:inherit;color:inherit}",
+		".sd-bin-page .sd-bin-row-meta > span + span::before{content:\"·\";margin-right:12px;color:var(--dsw-alias-label-tertiary,#77808f)}",
+		".sd-bin-page .sd-bin-row-id{grid-area:id;justify-self:end;align-self:center;display:flex;align-items:baseline;gap:6px;max-width:100%;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;line-height:16px;color:var(--dsw-alias-label-tertiary,#77808f);word-break:break-all;text-align:right}",
+		".sd-bin-page .sd-bin-row-id-label{flex:none;font-size:9px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;opacity:.65}",
+		".sd-bin-page .sd-bin-row-id-value{min-width:0}",
+		".sd-bin-page .sd-bin-row-actions{grid-area:actions;align-self:center;flex:none}",
+		".sd-bin-page .sd-bin-row-warn,.sd-bin-page .sd-bin-row-err{grid-column:1/-1}",
+		// Narrow column (sidebar expanded on a laptop, or a split window): drop to
+		// one column, left-align the id and move the actions under the text. 780px is
+		// where the title starts losing to the id + button columns (~275 + ~180 + gaps).
+		"@container sd-bin (max-width:780px){.sd-bin-page .sd-bin-row{grid-template-columns:minmax(0,1fr);grid-template-areas:\"title\" \"meta\" \"id\" \"actions\";row-gap:6px}.sd-bin-page .sd-bin-row-id{justify-self:start;text-align:left}.sd-bin-page .sd-bin-row-actions{justify-self:start;margin-top:4px}}",
+		// A page lists many rows, so the destructive action is a quiet red label
+		// until hovered: 26 filled red buttons would out-shout every title. The
+		// confirmation strip and the dialog keep the filled treatment.
+		".sd-bin-page .sd-bin-row-actions .sd-dlg-btn-danger{background:transparent;border-color:transparent;color:var(--dsw-alias-state-error-primary,#e5484d);font-weight:500}",
+		".sd-bin-page .sd-bin-row-actions .sd-dlg-btn-danger:hover{background:rgba(229,72,77,.12);color:var(--dsw-alias-state-error-primary,#e5484d)}",
 		// A page has a whole column of free space; the dialog's 30px padding would
 		// leave the empty state glued to the head. `calc` keeps the footer near the
 		// bottom of the viewport instead of floating in the middle of it.
@@ -2017,20 +2048,46 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 		return isFinite(at) && (Date.now() - at) >= days * 86400000;
 	}
 
-	function renderBinRow(entry, state) {
-		var meta = [tr("bin.deletedAt", { when: formatRelativeTime(entry.deletedAt) })];
-		if (typeof entry.cwd === "string" && entry.cwd !== "") meta.push(baseName(entry.cwd));
-		if (typeof entry.sizeBytes === "number" && entry.sizeBytes > 0) {
-			meta.push(formatBytes(entry.sizeBytes));
+	/**
+	 * One entry row.
+	 * @param variant - `"page"` lays the row out for the full-width page: the
+	 *   session id gets its own column and is never truncated; the dialog keeps
+	 *   the compact shape (short id inside the meta line).
+	 */
+	function renderBinRow(entry, state, variant) {
+		var wide = variant === "page";
+		var meta = [{ key: "time", text: tr("bin.deletedAt", { when: formatRelativeTime(entry.deletedAt) }) }];
+		if (typeof entry.cwd === "string" && entry.cwd !== "") {
+			// The dialog only has room for the folder's name; the page still shows
+			// that (it is what people recognise) but names the full path on hover.
+			meta.push({ key: "cwd", text: baseName(entry.cwd), title: wide ? entry.cwd : undefined });
 		}
-		meta.push(shortSessionId(entry.id));
+		if (typeof entry.sizeBytes === "number" && entry.sizeBytes > 0) {
+			meta.push({ key: "size", text: formatBytes(entry.sizeBytes) });
+		}
+		if (!wide) meta.push({ key: "id", text: shortSessionId(entry.id) });
 		var parts = [
-			React.createElement("div", { key: "title", className: "sd-bin-row-title" }, displayTitle(entry)),
+			React.createElement("div", {
+				key: "title", className: "sd-bin-row-title",
+				title: wide ? displayTitle(entry) : undefined
+			}, displayTitle(entry)),
 			React.createElement("div", { key: "meta", className: "sd-bin-row-meta" },
-				meta.map(function (text, index) {
-					return React.createElement("span", { key: String(index) }, text);
+				meta.map(function (item) {
+					return React.createElement("span", { key: item.key, title: item.title }, item.text);
 				}))
 		];
+		if (wide) {
+			// A page has the width for the real id, and a truncated one is useless
+			// for support ("which session is this?"), so it is shown in full and
+			// labelled instead of being squeezed into the meta line.
+			parts.push(React.createElement("div", {
+				key: "id", className: "sd-bin-row-id",
+				title: entry.id
+			}, [
+				React.createElement("span", { key: "label", className: "sd-bin-row-id-label" }, "ID"),
+				React.createElement("span", { key: "value", className: "sd-bin-row-id-value" }, entry.id)
+			]));
+		}
 		if (isExpiringEntry(entry)) {
 			parts.push(React.createElement("div", { key: "expiring", className: "sd-bin-row-warn" }, tr("bin.expiring")));
 		}
@@ -2053,7 +2110,10 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 				}, tr("bin.purge"))
 			];
 		}
-		return React.createElement("div", { key: entry.id, className: "sd-bin-row" }, [
+		return React.createElement("div", {
+			key: entry.id,
+			className: wide ? "sd-bin-row sd-bin-row-wide" : "sd-bin-row"
+		}, [
 			React.createElement("div", { key: "main", className: "sd-bin-row-main" }, parts),
 			React.createElement("div", { key: "actions", className: "sd-bin-row-actions" }, actions)
 		]);
@@ -2110,6 +2170,9 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 	/** The panel's contents: loading/empty/list, notices, confirm strip, footer. */
 	function TrashPanelBody(props) {
 		var state = props.state;
+		// The same body serves the dialog and the page; only the row density and
+		// the id treatment differ (see renderBinRow).
+		var variant = props.variant === "page" ? "page" : "dialog";
 		var entries = Array.isArray(state.entries) ? state.entries : [];
 		var visible = entries.slice(0, state.visible);
 		var children = [];
@@ -2130,7 +2193,7 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 			]));
 		} else {
 			children.push(React.createElement("div", { key: "list", className: "sd-bin-list" },
-				visible.map(function (entry) { return renderBinRow(entry, state); })));
+				visible.map(function (entry) { return renderBinRow(entry, state, variant); })));
 			if (entries.length > visible.length) {
 				children.push(React.createElement("button", {
 					key: "more", type: "button", className: "sd-bin-more",
@@ -2247,18 +2310,16 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 			"aria-label": tr("bin.title")
 		}, [
 			React.createElement("div", { key: "inner", className: "sd-bin-page-inner" }, [
+				// No glyph in the page head: the title reads as a page heading, and
+				// the sidebar row above it already carries the icon.
 				React.createElement("div", { key: "head", className: "sd-bin-page-head" }, [
-					React.createElement("span", {
-						key: "icon", className: "sd-icon",
-						dangerouslySetInnerHTML: { __html: ICON }
-					}),
 					React.createElement("span", { key: "title", className: "sd-bin-page-title" }, tr("bin.title")),
 					React.createElement("span", {
 						key: "count", className: "sd-bin-head-count"
 					}, tr("bin.count", { n: state.entries.length }))
 				]),
 				React.createElement("div", { key: "body", className: "sd-bin-page-body" },
-					React.createElement(TrashPanelBody, { state: state }))
+					React.createElement(TrashPanelBody, { state: state, variant: "page" }))
 			])
 		]);
 	}
