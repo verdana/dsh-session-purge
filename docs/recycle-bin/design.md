@@ -575,6 +575,62 @@ ctx.inject(['slots'], (scope) => {
 - 上游没有 `settings.section`（0.1.5）时注册不生效但**不报错**；此时设置只能通过
   `GET/POST /session-purge/settings` 访问（降级路径，写进 README）。
 
+### 7.5 入口形态：图标 / 菜单（`entryPlacement`）
+
+**需求**：让用户选「工作区行的小图标 + 弹窗」还是「和插件 / 自动化任务并列的一行 + 整页」。
+前半句是既有实现（§7.1），这一节只讨论后者为什么必须同时是**页面**。
+
+**上游契约（0.2.1-rc.5 源码核对）**
+
+- 那列导航叫 `sidebar.panellist`（`packages/client/ui-sidebar/src/client/contract/slots.ts:36`），
+  注册参数只有 `id` / `order` / `label`；行按钮、hover、tooltip、选中态全部由上游拥有。
+  上游把每一行渲染成「glyph + （`wide` 时）文字」，所以折叠成 56px 轨道后**只剩图标**，这不是我们能改的。
+- **一行 = 一个主面板**。`PanelRow` 的 `onClick` 直接 `layout.selectPanel(id)`，而
+  `ui-layout` 的实现是 `if (panelId !== null && !this.hasMainPanel(panelId)) throw new Error(...)`。
+  也就是说「只注册导航项、点击仍开我们的弹窗」这条路**第一步就抛错**，不存在「零成本换位置」的写法。
+- `main` 是 `keyed` 槽位，`entryKey = activePanelId ?? "conversation"`，所以页面必须用**同一个 id**
+  注册成 `main` 的一个 key。
+- `order`：内置 `plugins = 0`、`schedules = 10`；我们取 `20`，落在「自动化任务」之后、「更多」之前。
+- `label` 是 thunk，但 `ui-sidebar` 的 `syncPanels` 只在 locale / slot 变更时重读，**条目数变化不会触发**。
+  想在行上显示「回收站（N）」就得每次计数变化重新注册一次 → 整列重建、`更多` 菜单跟着抖。
+  第一版因此只显示静态「回收站」，计数仍在图标形态的 tooltip 里（§13 记为已知取舍）。
+
+**三种可行路线与取舍**
+
+| 路线 | 做法 | 结论 |
+|---|---|---|
+| A 官方槽位 + 真页面 | `sidebar.panellist` + 同 id 的 `main` 页 | **采用**：零 DOM 猜测，选中态/折叠/无障碍全由上游给 |
+| B 官方槽位 + 桥接页抢帧 | `main` 页在 `useLayoutEffect` 里开弹窗再 `selectPanel(null)` | 否：拿框架时序做技巧，上游改过渡就闪一下 |
+| C 在 `nav` 里 DOM 插一行 | 克隆现有 `panelRow` 的哈希 class | 否：要处理展开/折叠/重排，且拿不到 pin / 更多 |
+
+**实现**
+
+- `installEntryPlacement()`（`client/client.js`）按 `settings.entryPlacement` 挂**一种且仅一种**入口：
+  - **首帧等设置**：`settings` 还没到时不装任何东西，否则菜单用户每次刷新都会先闪一下图标；
+    设置请求失败（或老 shell 没有该路由）→ 退回图标。
+  - 装菜单前先确认 `ctx.get("slots")` 存在，装图标前先 `releasePage()`：只有当前选中的正是
+    `session-purge-trash` 时才 `selectPanel(null)`，绝不把用户从「插件」页踢出去。
+- `installMenuEntry()` 注册两格：
+  `sidebar.panellist`（`id = session-purge-trash`, `order = 20`, `label = () => tr("sidebar.trash")`）
+  与 `main`（`key = session-purge-trash`）。两者用同一个常量，因为 id/key 一旦不一致，
+  `selectPanel` 就会抛「not registered」。
+- `TrashPage` 是页面外壳：标题行 + **复用 `TrashPanelBody`**。弹窗与页面因此共享同一个 store、
+  同一套加载/空态/分页/确认条/错误文案，不存在第二份实现。
+- `openTrashPanel()` 成为唯一入口：菜单形态先 `selectPanel(TRASH_PANEL_ID)`，**抛错就回落弹窗**
+  （面板页没注册成功时不会变成死路）；图标形态照旧开 `Modal`。toast 与设置页的「打开回收站」都走它，
+  所以「从哪进都是同一种形态」，不需要用户记两套规则。
+- 布局：`.sd-bin-page` 是 `height:100%` 的 flex 列，`.sd-bin-page-body` 把高度预算传给
+  `.sd-bin-body`（同 §7.2 的理由），列表 `max-height` 在页面里解除；空态/加载态在页面里
+  `flex:1` + 居中，避免一大片空白把文案顶在标题下面。
+- 设置项 `entryPlacement`（`icon` 默认 / `menu`）走 `lib/index.js` 的
+  `SETTINGS_DEFAULTS` → `normalizeSettings`（闭集，未知值回 icon）→ `validateSettingsPatch`
+  （严格拒绝），与其余四个字段同一套读写路径；设置页用 `SegmentedControl`（无原语时用
+  `.sd-set-segment` 兜底）呈现，改完立即重挂入口，不重启、不刷新。
+
+**验证**：`tools/entry-placement-probe.mjs`（隔离 rc.5 实例，21 项断言）覆盖
+「图标 → 设置页切菜单 → 导航行/顺序/选中态/整页/行宽/折叠轨道 → 复原 → 切回图标」；
+纯逻辑（`placementOf`、`iconMarkup`、id 一致性）由 `tools/client-bin.test.mjs` 覆盖。
+
 ## 8. 测试计划
 
 ### 8.1 单元/回归（`node --test tools/*.test.mjs`）

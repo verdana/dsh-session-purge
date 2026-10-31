@@ -27,11 +27,16 @@ into two jobs: the reversible part (move to the bin) and reclaiming disk space
   (title, original folder, deletion time, size, session id) where each entry can be
   **restored** or **deleted permanently**, with **Empty the recycle bin** and the
   retention policy in the footer.
+- **Or put it in the top text menu**: set **Entry position** to **Menu** and the bin
+  becomes a row beside **Plugins / Automations**, opening a **full page** — a wider
+  list with roomier rows for comparing entries. The default is still icon + dialog,
+  and the two switch instantly.
 - **Account menu → Settings → Recycle bin** (since DSH 0.2.1; older shells show a
-  sidebar **Settings** button): the nav row uses the bin icon, plus the auto-clean
-  switch, the retention period (7/30/90/365 days / forever), sweep-on-startup, the
-  sweep interval (1–168 hours), usage stats, **Clean up now** and **Open the recycle
-  bin**; the footer shows the running version and hints at newer npm releases.
+  sidebar **Settings** button): the nav row uses the bin icon, plus the entry
+  position, the auto-clean switch, the retention period (7/30/90/365 days / forever),
+  sweep-on-startup, the sweep interval (1–168 hours), usage stats, **Clean up now**
+  and **Open the recycle bin**; the footer shows the running version and hints at
+  newer npm releases.
 - **Defaults**: auto-clean on, 30-day retention, one sweep at startup plus one
   every 6 hours. Changes take effect immediately — no restart.
 
@@ -71,6 +76,11 @@ dialog, the panel and the settings page all follow DSH's interface language.
 Click the **bin icon** on the sidebar's workspace row. The panel lists every
 deleted session, newest deletion first:
 
+> With **Entry position** set to **Menu** there is no icon: click the **Recycle bin**
+> row at the top and the same list opens as a page in the centre column (wider, with
+> roomier rows). The footer actions are identical. Leave the page by clicking a
+> session or **New session** — like the other global pages it has no close button.
+
 - Each row shows the title (or "Untitled session"), the original working folder,
   `Deleted 3 days ago`, the size and the session id; entries past their retention
   window are marked "Will be removed by the next auto-clean".
@@ -88,6 +98,7 @@ show a sidebar **Settings** button instead):
 
 | Option | Default | Meaning |
 |---|---|---|
+| Entry position | Icon | **Icon**: a glyph on the workspace row that opens a dialog; **Menu**: a row beside Plugins / Automations that opens a full page |
 | Auto-clean the recycle bin | on | When off, nothing is deleted automatically — only manual clean-up runs |
 | Retention period | 30 days | 7 / 30 / 90 / 365 days or "Forever"; older entries are permanently deleted by the next sweep |
 | Sweep once at startup | on | Run one retention sweep each time `dsh web` starts |
@@ -104,6 +115,12 @@ plugin, restart `dsh web` once; a page reload alone will not show the new footer
 
 ## What to know
 
+- **What the menu placement does and does not do**: the collapsed rail shows an icon
+  only — upstream renders row labels exclusively while that column is expanded. The
+  row reads "Recycle bin" and carries no count (the count stays in the icon tooltip
+  and beside the page title). Every entry except Plugins can be tucked into **More**
+  by the user; that is DSH's own entry customisation and applies to this row too.
+  Switching back to Icon while the bin page is open returns you to the conversation.
 - **Deletion is reversible; disk space is not reclaimed immediately.** Moving a
   session to the bin relocates its directory. The space comes back on a permanent
   delete, on emptying the bin, or on an automatic sweep.

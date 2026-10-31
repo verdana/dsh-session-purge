@@ -30,6 +30,9 @@ M1（宿主内核）、M2（客户端主流程）、M3（设置页与自动清�
 - **删除变成软删除**：会话目录 `rename` 到 `<DSH_HOME>/session-purge/trash/`，不删不改写，复原位级忠实。
 - **侧边栏入口必须 DOM 注入**：上游 `sidebar.workspaces` 是 single 槽位且 header 没有 hole，
   同时要覆写 `.headerActions{max-width:60px}`，否则第 4 个图标会被裁掉。
+- **入口也可以放到顶部文字菜单**：`sidebar.panellist` 是与「插件 / 自动化任务」同一列，
+  但每行硬绑一个 `main` 页面（`layout.selectPanel` 对未注册的 id 直接抛错），所以菜单形态
+  必然是「一行 + 整页」，不存在「只换位置、仍开弹窗」；取舍见 design.md §7.5。
 - **面板用 `@deepseek-ai/dsh-client-ui-primitives` 的 `Modal`**（平台 seed 词，不新增 npm 依赖），
   卡片宽 **760px**——上游默认 380px 会把会话标题挤成一条缝。
 - **设置页走 `settings.section` 槽位**，但配置**不**走 `configForms`（插件无法 import

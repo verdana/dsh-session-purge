@@ -53,6 +53,7 @@ node tools/settings-render-probe.mjs  # 真实 React + 真实主题渲染设置�
 pwsh -NoProfile -File tools/probe-setup.ps1
 $env:DSH_HOME = '<repo>\.probe-home'; dsh --profile web --no-open --port 3081 --host 127.0.0.1
 node tools/bin-live-probe.mjs "http://127.0.0.1:3081/?token=<启动时打印的 token>"
+node tools/entry-placement-probe.mjs "http://127.0.0.1:3081/?token=<同一个 token>"
 ```
 
 都不碰你的 `~/.dsh`（用临时 `DSH_HOME`）。渲染探针需要 DSH 源码树（取 React 与
@@ -87,6 +88,10 @@ Windows 上 `tools/trash.test.mjs` 的收尾清理偶尔会对 symlink/junction 
   「复原后不刷新页面行就回来」、以及设置页四项真的落库，只有真 shell 能证明
   （design.md §8.5 记了探针的四个坑）。设置页导航图标依赖真实 shell 的
   `[role="dialog"] nav` DOM，版本页脚依赖宿主返回 `version`，这两项也只有 live 探针能证明。
+- **改入口形态（`entryPlacement`），跑 `entry-placement-probe.mjs`**：`sidebar.panellist` 与
+  `main` 的 id/key 必须一致（`layout.selectPanel` 对未注册的 key 直接抛错）、导航行的顺序、
+  选中态、折叠轨道的高度，都只有真 shell 能证明。探针要求起点是「图标」形态，会临时往回收站
+  放一条会话并在结束时复原。
 
 ## 回收站模型（0.5.0 起）
 
