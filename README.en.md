@@ -22,15 +22,15 @@ into two jobs: the reversible part (move to the bin) and reclaiming disk space
 - **Session-row menu**: `⋯` → **Move to recycle bin** (replacing the old
   unrecoverable "Delete session"), with a confirmation step. A running session is
   refused.
-- **Sidebar workspace row**: a fourth icon after search / view options / add
-  workspace — the **recycle bin**. It opens a panel listing every deleted session
-  (title, original folder, deletion time, size, session id) where each entry can be
-  **restored** or **deleted permanently**, with **Empty the recycle bin** and the
-  retention policy in the footer.
+- **Sidebar workspace row (icon placement)**: a fourth icon after search / view
+  options / add workspace — the **recycle bin**. It opens a panel listing every
+  deleted session (title, original folder, deletion time, size, session id) where each
+  entry can be **restored** or **deleted permanently**, with **Empty the recycle bin**
+  and the retention policy in the footer.
 - **Or put it in the top text menu**: set **Entry position** to **Menu** and the bin
-  becomes a row beside **Plugins / Automations**, opening a **full page** — a wider
-  list with roomier rows for comparing entries. The default is still icon + dialog,
-  and the two switch instantly.
+  becomes a row beside **Plugins / Automations**, opening a **full page** with wider
+  rows and three information tiers (title / meta / full session id) — easier to compare
+  entry by entry. The default is still icon + dialog, and the two switch instantly.
 - **Account menu → Settings → Recycle bin** (since DSH 0.2.1; older shells show a
   sidebar **Settings** button): the nav row uses the bin icon, plus the entry
   position, the auto-clean switch, the retention period (7/30/90/365 days / forever),
@@ -68,28 +68,44 @@ dsh plugin --profile web remove dsh-session-purge
 ### Move a session to the bin
 
 Hover any session row → click `⋯` → **Move to recycle bin** → confirm. The row
-leaves the list immediately and the entry shows up in the bin. The menu item, the
-dialog, the panel and the settings page all follow DSH's interface language.
+leaves the list immediately and the entry shows up in the bin (dialog or page). The
+menu item, the dialog, the page and the settings page all follow DSH's interface
+language.
 
 ### Open the bin
 
 Click the **bin icon** on the sidebar's workspace row. The panel lists every
-deleted session, newest deletion first:
+deleted session, newest deletion first.
 
-> With **Entry position** set to **Menu** there is no icon: click the **Recycle bin**
-> row at the top and the same list opens as a page in the centre column (wider, with
-> roomier rows). The footer actions are identical. Leave the page by clicking a
-> session or **New session** — like the other global pages it has no close button.
+With **Entry position** set to **Menu** there is no icon: click the **Recycle bin**
+row at the top and the same list opens as a **page** in the centre column. Both shapes
+share one dataset and one set of actions — only the container differs:
+
+| | Dialog (icon) | Page (menu) |
+|---|---|---|
+| Row tiers | title and meta share one 12px line | title 15px/600, meta 12px secondary, id 11px monospace |
+| Session id | truncated at 16 characters | **shown in full**, prefixed with an `ID` label |
+| Scrolling | the list scrolls inside the card; the footer stays put | the page scrolls; the footer follows the content |
+| Narrow width | dialog fits the viewport, 760px at most | rows stack into one column below 780px (title → meta → id → actions) |
 
 - Each row shows the title (or "Untitled session"), the original working folder,
   `Deleted 3 days ago`, the size and the session id; entries past their retention
-  window are marked "Will be removed by the next auto-clean".
+  window are marked "Will be removed by the next auto-clean". Only the folder name is
+  shown — hover it on the **page** to see the full path.
+- On the page, **Delete permanently** is a red text button that only tints on hover,
+  rather than the filled red block used in the dialog: dozens of filled red buttons
+  would out-shout every title. The confirmation bar and the dialog keep the filled
+  treatment.
 - **Restore** moves the directory back exactly where it came from (byte-for-byte);
   the sidebar row reappears without a page reload, and a toast reports the outcome.
 - **Delete permanently** removes it after a confirmation, and cannot be undone.
 - **Empty the recycle bin** removes everything after a confirmation that states
   the entry count and the space involved.
 - More than 50 entries show one page with a **Load more** control.
+- In the **dialog**, a list taller than one screen scrolls inside the card, so the
+  **Empty the recycle bin** footer and the policy line stay put; the **page** has no
+  such inner scroll — title and footer travel with the content, as on the other global
+  pages.
 
 ### Settings
 
@@ -104,7 +120,7 @@ show a sidebar **Settings** button instead):
 | Sweep once at startup | on | Run one retention sweep each time `dsh web` starts |
 | Sweep interval | 6 hours | 1–168 hours; both schedule controls grey out while auto-clean is off |
 | Clean up now | — | Run one retention sweep immediately and report how many entries went |
-| Open the recycle bin | — | Open the bin panel directly |
+| Open the recycle bin | — | Opens the bin in whatever **Entry position** is active: dialog for Icon, page for Menu |
 
 The page footer is separated by a rule and shows **the version of the plugin that is
 actually running**. Opening the page also makes one best-effort npm registry check: a
@@ -117,10 +133,15 @@ plugin, restart `dsh web` once; a page reload alone will not show the new footer
 
 - **What the menu placement does and does not do**: the collapsed rail shows an icon
   only — upstream renders row labels exclusively while that column is expanded. The
-  row reads "Recycle bin" and carries no count (the count stays in the icon tooltip
-  and beside the page title). Every entry except Plugins can be tucked into **More**
-  by the user; that is DSH's own entry customisation and applies to this row too.
-  Switching back to Icon while the bin page is open returns you to the conversation.
+  page's title matches the other global pages (20px) and carries no icon, just
+  "Recycle bin" and a count pill on its right (the sidebar row and the dialog title
+  already have the glyph). The menu row itself reads "Recycle bin" and carries no
+  count (that count lives in the icon's tooltip and beside the page title). Every
+  entry except Plugins can be tucked into **More** by the user;
+  that is DSH's own entry customisation and applies to this row too. The page has no
+  close button — click any session or **New session** to leave, as on Plugins and
+  Automations. Switching back to Icon while the bin page is open returns you to the
+  conversation.
 - **Deletion is reversible; disk space is not reclaimed immediately.** Moving a
   session to the bin relocates its directory. The space comes back on a permanent
   delete, on emptying the bin, or on an automatic sweep.
@@ -156,11 +177,12 @@ plugin, restart `dsh web` once; a page reload alone will not show the new footer
   (Ctrl+Shift+R). As long as the menu shows Rename / Fork session / Archive
   session (plus Copy Session ID after archive on 0.2.1; Unarchive session on an
   archived row), the plugin should insert its item right below that row; the icon
-  sits immediately after **Add workspace**.
+  sits immediately after **Add workspace**. If **Entry position** is **Menu** there is
+  no icon by design — look for a **Recycle bin** row among Plugins / Automations instead.
 - **Cannot find the Settings page?** Since 0.2.1 the entry is the bottom-left
   **account menu → Settings**; there is no separate sidebar Settings button
-  anymore. The bin panel's policy line also opens Settings directly. Older DSH
-  versions still show the sidebar Settings button.
+  anymore. The policy line at the bottom of the bin (dialog or page) also opens
+  Settings directly. Older DSH versions still show the sidebar Settings button.
 - **To see the actual state**:
 
   ```sh
@@ -193,8 +215,9 @@ plugin, restart `dsh web` once; a page reload alone will not show the new footer
 
 - **A few entries survived "Empty the recycle bin"**: the host refused them —
   usually because the payload directory was turned into a link pointing outside the
-  bin, which the safety gate rejects. Those rows stay in the panel with the reason
-  inline and a count of what could not be removed; reopening the panel keeps them.
+  bin, which the safety gate rejects. Those rows stay in the list with the reason
+  inline and a count of what could not be removed; closing and reopening (or leaving
+  the page and coming back) keeps them.
   **Restore** the session to get it back, or repair the directory and delete again.
 
 - Verbose logs: start `dsh web` with `DSH_PURGE_DEBUG=1`.
@@ -203,7 +226,9 @@ plugin, restart `dsh web` once; a page reload alone will not show the new footer
 
 - DSH, with a working `dsh web`. **Fully verified live on 0.2.1-rc.5, 0.2.1-rc.4,
   0.2.1-rc.2 and 0.2.0-rc.2**: the bin panel, the settings page's auto-clean controls,
-  the full move → restore → delete-permanently → sweep round trip, plus (on 0.2.1) the
+  the full move → restore → delete-permanently → sweep round trip, both entry shapes
+  (icon + dialog, menu + page, including switching back and forth and the narrow-width
+  layout), plus (on 0.2.1) the
   account-menu settings entry and the dev repro scripts against the plugin-style
   JSONL backend. rc.3 was never run on its own — it differs from its neighbours only
   in tooltip and logging behavior; none of the contracts this plugin relies on
