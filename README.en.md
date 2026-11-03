@@ -161,6 +161,12 @@ plugin, restart `dsh web` once; a page reload alone will not show the new footer
   only on what the session persistence layer locates and whose filename is
   genuinely a session log (`session[.vN].jsonl[.zstd]`). It would rather refuse
   than touch the wrong directory.
+- **A restore puts the session back into its workspace where it can.** Deleting only
+  moves the directory; the workspace membership is still recorded. On restore the
+  plugin resolves the workspace from the session's own `cwd` and re-registers it —
+  **this works after a `dsh web` restart too, with no page reload**. The session only
+  lands in **Ungrouped** when the original directory was renamed or removed, or when
+  the session never had a `cwd` (see Troubleshooting).
 - **Where the bin lives**: `~/.dsh/session-purge/trash/`, one entry per deleted
   session — the moved session directory plus a sidecar metadata file recording the
   original path, deletion time, size and archive state, which is what makes a
@@ -219,6 +225,19 @@ plugin, restart `dsh web` once; a page reload alone will not show the new footer
   inline and a count of what could not be removed; closing and reopening (or leaving
   the page and coming back) keeps them.
   **Restore** the session to get it back, or repair the directory and delete again.
+
+- **Restored, but the session still shows as "Ungrouped"?** First check that the
+  original directory still exists and has not been renamed or moved — membership is
+  resolved from `cwd`, so when the path no longer matches, neither the plugin nor DSH
+  can put the session back into its workspace; that is path drift, not a failed
+  restore. If the directory is intact and it is still ungrouped, look at the terminal
+  that started `dsh web` for warnings starting with `[session-purge]`:
+  `is still unaccounted by workspace …` (the workspace write did not stick),
+  `workspace re-attach failed` (the host refused the registration, e.g. an
+  unreadable directory), or `cannot republish the workspace projection … on this DSH
+  version` (older DSH cannot push the new grouping to an already-open page; a page
+  reload places it correctly). With `DSH_PURGE_DEBUG=1` the host logs the steps in
+  more detail.
 
 - Verbose logs: start `dsh web` with `DSH_PURGE_DEBUG=1`.
 
