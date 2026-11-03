@@ -313,9 +313,11 @@ test('restoring replays the archive flag and re-attaches the workspace', async (
     const calls = [];
     fx.services.workspaceRegistry = {
         archivedSessionIds: [fx.sessionId],
+        sessionKnown: async (id) => { calls.push(['known', id]); return true; },
         unarchiveSession: async (id) => { calls.push(['unarchive', id]); },
         archiveSession: async (id) => { calls.push(['archive', id]); },
         resolveByPath: async (path) => ({
+            sessionIds: [fx.sessionId],
             attachSession: async (id) => { calls.push(['attach', id, path]); },
         }),
     };
@@ -328,7 +330,79 @@ test('restoring replays the archive flag and re-attaches the workspace', async (
     calls.length = 0;
     const restored = await restoreSession(fx.ctx, fx.sessionId);
     assert.equal(restored.wasArchived, true);
-    assert.deepEqual(calls.map((call) => call[0]), ['attach', 'unarchive', 'archive']);
+    assert.deepEqual(calls.map((call) => call[0]), ['known', 'attach', 'unarchive', 'archive']);
+});
+
+test('a restore re-indexes the header cache before re-attaching after a restart', async () => {
+    const fx = await fixture();
+    // Registry state on the first restore after a restart: the session is still
+    // recorded, but the in-process header index was built while its directory
+    // sat in the bin, so it cannot vouch for the id. `attachSession`
+    // short-circuits on a recorded id, and the `mutate` it triggers prunes every
+    // id the stale index rejects -- including the one being restored.
+    const republished = [];
+    const workspace = {
+        path: join(fx.home, 'proj'),
+        title: 'proj',
+        accounted: new Set([fx.sessionId]),
+        indexed: false,
+        get sessionIds() {
+            return [...this.accounted].filter(() => this.indexed);
+        },
+        attachSession: async function (id) {
+            if (workspace.indexed) workspace.accounted.add(id);
+            else workspace.accounted.delete(id);
+        },
+        setTitle: async (title) => { republished.push(title); },
+    };
+    fx.services.workspaceRegistry = {
+        sessionKnown: async () => {
+            workspace.indexed = true;
+            return true;
+        },
+        resolveByPath: async () => workspace,
+        unarchiveSession: async () => {},
+    };
+
+    await trashSession(fx.ctx, fx.sessionId);
+    assert.equal(workspace.indexed, false, 'the restart left the index stale');
+
+    const restored = await restoreSession(fx.ctx, fx.sessionId);
+    assert.equal(restored.ok, true);
+    assert.equal(workspace.indexed, true, 'restore must refresh the header index');
+    assert.equal(workspace.accounted.has(fx.sessionId), true,
+        'the restored session must keep its workspace slot');
+    assert.deepEqual(republished, ['proj'],
+        'a no-op re-attach must still republish the stale workspace projection');
+});
+
+test('a restore leaves an already-correct workspace projection alone', async () => {
+    const fx = await fixture();
+    // No restart: the header index already vouches for the id, so the client's
+    // projection was never stale and the restore must not add a workspace write.
+    const writes = [];
+    const workspace = {
+        path: join(fx.home, 'proj'),
+        title: 'proj',
+        accounted: new Set([fx.sessionId]),
+        indexed: true,
+        get sessionIds() {
+            return [...this.accounted].filter(() => this.indexed);
+        },
+        attachSession: async function (id) { workspace.accounted.add(id); },
+        setTitle: async (title) => { writes.push(title); },
+    };
+    fx.services.workspaceRegistry = {
+        sessionKnown: async () => true,
+        resolveByPath: async () => workspace,
+        unarchiveSession: async () => {},
+    };
+
+    await trashSession(fx.ctx, fx.sessionId);
+    const restored = await restoreSession(fx.ctx, fx.sessionId);
+    assert.equal(restored.ok, true);
+    assert.equal(workspace.accounted.has(fx.sessionId), true);
+    assert.deepEqual(writes, [], 'no workspace write is needed when the projection is current');
 });
 
 test('a restore onto an existing directory is refused, not merged', async () => {

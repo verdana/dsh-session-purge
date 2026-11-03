@@ -170,10 +170,21 @@ M2 期间被真实跑出来的三个实现细节（都已在代码里落地）�
   槽位保留；但**重启**后 `replaceHeaderIndex()` 只索引磁盘上还在的会话，于是那个槽位在
   下一次 workspace 写入时被**永久剪掉**，复原后的会话就落进浏览器本地的 “Ungrouped” 分组，
   而不是原来的工作区。M1 的实现（§4.2 第 6 步）在复原后调用
-  `workspaceRegistry.resolveByPath(cwd)` 拿到工作区实体并 `attachSession(id)`，
-  主动把归属补回来（`attachSession` 会顺带触发 header 重索引）。
+  `workspaceRegistry.resolveByPath(cwd)` 拿到工作区实体并 `attachSession(id)`；但
+  `attachSession` 对**仍在记录里**的 id 会短路（不读 header、不重索引），随后它触发的
+  `mutate` 又按陈旧索引剪枝，反而把刚复原的 id 剪掉（旧版重启后复原 BUG：会话随后落进
+  “Ungrouped”）。现在的实现先用 `workspaceRegistry.sessionKnown(id)` 让 registry 从复原后的
+  磁盘重新扫描 header 索引，再 `attachSession`；复原后还校验 `workspace.sessionIds` 是否真的
+  包含该 id，不包含就 `warn`（此前这类失败只进 `debugLog`，用户完全看不到）。
   这同时解释了为什么 `/workspace` 的日志里会出现
   “filtered session 'S' from membership: session header is missing”。
+- **页面投影也要补**（第二层，只在“重启后的复原”遇到）：如果重启期间没有任何 workspace 写入，
+  id 其实没被剪掉，`attachSession` 就成了**无写入的 no-op**——registry 对无变化的写既不落盘、
+  也不发 `domain/changed`（`entity.ts` 的 `mutate` 用哨兵跳过），已连接的页面仍保留启动时算出的
+  baseline（不含该 id），于是出现“host 已正确、页面还显示未分组，刷新才归组”。复原时若检测到
+  “刷新索引前 `sessionIds` 不含、刷新后包含”，插件会对该工作区做一次等价写（重设同一标题，只推进
+  `updatedAt`），让控制器用**原始** `sessionIds` 重新 upsert 投影；同进程内的普通复原检测不到
+  这种陈旧，不会产生多余写。前端不做改动，仍由既有 feed 消费这次 upsert。
 
 ### 2.7 投影缓存
 
@@ -329,8 +340,12 @@ M2 期间被真实跑出来的三个实现细节（都已在代码里落地）�
 4. rename(trash/<trashId> → 目标)；EXDEV → 复制 + 校验 + 删源
 5. 删除 `<trashId>.json`
 6. 归属与归档一致性（best effort，任何一步失败都只记日志、不影响复原结论）：
-   - `workspaceRegistry.resolveByPath(cwd)` 找到工作区实体 → `attachSession(id)`
-     （把重启后被剪掉的 `sessionIds` 槽位补回来，避免会话落进 Ungrouped）；
+   - `workspaceRegistry.resolveByPath(cwd)` 找到工作区实体，先记下过滤后的 `sessionIds`
+     是否已含该 id（用来判断页面投影是否陈旧）；
+   - `workspaceRegistry.sessionKnown(id)` 让 registry 从复原后的磁盘重建 header 索引
+     （不先刷新的话，下面这步会按启动时的陈旧索引把槽位剪掉）；
+   - `attachSession(id)` 补回 `sessionIds` 槽位；若“刷新前不含、刷新后已包含”，再对该工作区
+     做一次等价写（`setTitle` 重设原标题）重新发布投影，页面无需刷新即可归组；
    - `unarchiveSession(id)`（幂等兜底）→ `wasArchived` 为真再 `archiveSession(id)`。
 7. 返回 { ok:true, restoredTo, wasArchived, cwdMissing: !existsSync(meta.cwd) }
 ```
