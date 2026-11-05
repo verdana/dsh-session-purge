@@ -429,7 +429,11 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 		".sd-set-link:hover{text-decoration:underline}",
 		// The settings nav glyph: hide the shell's gear and paint the bin in its
 		// place. Both rules only apply while the marker below is present.
-		"[data-sd-settings-nav=\"trash\"] > svg{display:none}",
+		// 0.2.1 and earlier hang the `<svg>` straight off the button; 0.2.2
+		// wraps it in `<span class="navIcon" aria-hidden="true">`, which the
+		// second selector covers. No version branching needed.
+		"[data-sd-settings-nav=\"trash\"] > svg," +
+		"[data-sd-settings-nav=\"trash\"] > span[aria-hidden=\"true\"]{display:none}",
 		"[data-sd-settings-nav=\"trash\"]::before{content:\"\";flex:none;width:16px;height:16px;background-color:currentColor;-webkit-mask:" + NAV_ICON_MASK + " center/16px 16px no-repeat;mask:" + NAV_ICON_MASK + " center/16px 16px no-repeat}",
 		".sd-bin-link:hover{text-decoration:underline}",
 		".sd-bin-more{display:block;width:100%;height:26px;margin-top:8px;border-radius:8px;border:1px dashed var(--dsw-alias-border-l2,rgba(127,127,127,.32));background:transparent;color:var(--dsw-alias-label-secondary,#8a93a6);font-size:11px;cursor:pointer}",
@@ -1472,8 +1476,14 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 		// `<span aria-hidden="true">` with the archive keys inside the button).
 		// Moving to the bin has no binding of its own, and a `Ctrl+Alt+A` keycap
 		// on this row would advertise the archive shortcut.
+		// Since 0.2.2 the icon container is `<span class="itemIcon"
+		// aria-hidden="true">` as well — it carries the row icon, so keep any
+		// aria-hidden element that contains an svg.
 		var keycaps = clone.querySelectorAll('[aria-hidden="true"]');
-		for (var c = 0; c < keycaps.length; c++) keycaps[c].remove();
+		for (var c = 0; c < keycaps.length; c++) {
+			if (keycaps[c].querySelector && keycaps[c].querySelector("svg") !== null) continue;
+			keycaps[c].remove();
+		}
 
 		btn.removeAttribute("aria-haspopup");
 		btn.removeAttribute("aria-expanded");
