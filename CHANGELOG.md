@@ -7,7 +7,7 @@
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循
 [语义化版本](https://semver.org/lang/zh-CN/)。
 
-## [未发布]
+## [0.5.8] - 2026-11-06
 
 ### 修复
 
@@ -17,7 +17,7 @@
   图标隐藏规则同时覆盖直挂 `<svg>`（0.2.1 及更早）与 `span` 包裹（0.2.2 起）两种结构，
   不按版本分支。详见 `docs/compat-0.2.2-rc.1.md`。
 
-## [0.5.7]
+## [0.5.7] - 2026-11-03
 
 ### 修复
 
@@ -38,7 +38,7 @@
   标签）三层，ID 不再省略；整页按可用宽度自适应，窄于 780px 时退化为单列。行内「真实删除」在
   整页里改成红字按钮（hover 才上底色），避免一屏几十个实心红块压过标题。
 
-## [0.5.6]
+## [0.5.6] - 2026-10-31
 
 ### 新增
 
@@ -120,7 +120,8 @@
 - 保留期自动清理：默认保留 30 天，启动时与每 6 小时各扫一次。
 - 侧边栏「工作区」行的回收站入口、回收站面板、设置页（`settings.section`）与自动清理设置。
 
-[未发布]: https://github.com/verdana/dsh-session-purge/compare/v0.5.7...HEAD
+[未发布]: https://github.com/verdana/dsh-session-purge/compare/v0.5.8...HEAD
+[0.5.8]: https://github.com/verdana/dsh-session-purge/compare/v0.5.7...v0.5.8
 [0.5.7]: https://github.com/verdana/dsh-session-purge/compare/v0.5.6...v0.5.7
 [0.5.6]: https://github.com/verdana/dsh-session-purge/compare/v0.5.5...v0.5.6
 [0.5.5]: https://github.com/verdana/dsh-session-purge/compare/v0.5.4...v0.5.5
