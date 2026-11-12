@@ -351,10 +351,10 @@ check('the footer carries the policy and the stats',
     light.states.list.footer !== null && light.states.list.footer.text.includes('自动清理：保留 30 天')
     && light.states.list.footer.text.includes('共 3 个会话'),
     light.states.list.footer?.text);
-check('permanent delete is offered and tinted with the error token',
+check('permanent delete is offered in the error colour',
     light.states.list.danger !== null
-    && light.states.list.danger.background === light.tokens.error.replace('rgb', 'rgb'),
-    `${light.states.list.danger?.background} vs ${light.tokens.error}`);
+    && light.states.list.danger.color === light.tokens.error.replace('rgb', 'rgb'),
+    `${light.states.list.danger?.color} vs ${light.tokens.error}`);
 check('a sweep reports the outcome', light.states.swept.notice !== null
     && light.states.swept.notice.text.includes('已自动清理'), String(light.states.swept.notice?.text));
 check('the confirm strip states the consequence',

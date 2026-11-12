@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>回收站 · 弹窗与页面层级预览</title>
+<style>
+  * { box-sizing: border-box; }
+  :root {
+    font-family: "Plus Jakarta Sans", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    color: #0f1115;
+    background: #f4f6f9;
+  }
+  body { margin: 0; padding: 54px 32px 76px; background: #f4f6f9; -webkit-font-smoothing: antialiased; }
+  .page { max-width: 1120px; margin: 0 auto; }
+  .eyebrow { margin: 0 0 10px; color: #61666b; font-size: 11px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
+  h1 { margin: 0; font-size: 30px; line-height: 1.25; letter-spacing: -.02em; font-weight: 700; }
+  .lede { max-width: 780px; margin: 12px 0 0; color: #4b5563; font-size: 14px; line-height: 1.75; }
+  .rule { display: flex; flex-wrap: wrap; gap: 10px 22px; margin: 26px 0 34px; padding: 14px 0; border-top: 1px solid #dfe4ec; border-bottom: 1px solid #dfe4ec; color: #61666b; font-size: 12px; }
+  .rule b { color: #0f1115; font-weight: 600; }
+  .section-label { display: flex; align-items: baseline; gap: 10px; margin: 0 0 12px; font-size: 13px; font-weight: 600; color: #30343b; }
+  .section-label span { color: #8a929e; font-size: 10px; font-weight: 700; letter-spacing: .12em; }
+  .stage {
+    position: relative; display: flex; align-items: center; justify-content: center;
+    min-height: 470px; margin-bottom: 30px; padding: 34px 24px; overflow: hidden;
+    border: 1px solid rgba(15,17,21,.08); border-radius: 18px; background: #f7f8fa;
+  }
+  .stage.dark { border-color: rgba(255,255,255,.08); background: #24262b; }
+  .stage.page-stage { align-items: stretch; padding: 0; background: #eef1f5; }
+  .stage.dark.page-stage { background: #24262b; }
+
+  /* theme tokens mirrored from DSH: the secondary mix is precomputed here. */
+  .theme-light {
+    --card: #e9ecf2; --primary: #0f1115; --secondary: #383c40; --tertiary: #5d646c;
+    --border: rgba(0,0,0,.12); --border-soft: rgba(0,0,0,.07);
+    --row: rgba(127,127,127,.045); --row-hover: rgba(127,127,127,.07);
+    --warn: #e5a000; --error: #ec1313; --count-bg: rgba(127,127,127,.10);
+  }
+  .theme-dark {
+    --card: #61666b; --primary: #f9fafb; --secondary: #e4e7e9; --tertiary: #cfd3d6;
+    --border: rgba(255,255,255,.16); --border-soft: rgba(255,255,255,.08);
+    --row: rgba(255,255,255,.055); --row-hover: rgba(255,255,255,.09);
+    --warn: #f59e0b; --error: #f25a5a; --count-bg: rgba(255,255,255,.10);
+  }
+
+  /* ── popup: the shell Modal path (title + description + body) ─────────── */
+  .bin-modal {
+    position: relative; width: 760px; max-width: calc(100% - 8px); overflow: hidden; padding-bottom: 24px;
+    border: 1px solid var(--border); border-radius: 16px; background: var(--card);
+    box-shadow: 0 24px 64px rgba(0,0,0,.30), 0 2px 8px rgba(0,0,0,.12);
+    color: var(--primary);
+  }
+  .bin-modal-head { display: flex; align-items: center; gap: 8px; padding: 22px 14px 12px 24px; }
+  .bin-modal-head h2 { flex: 1 1 auto; margin: 0; font-size: 16px; line-height: 1.3; font-weight: 600; letter-spacing: -.01em; }
+  .bin-close {
+    flex: none; display: inline-flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px; padding: 0; border: 0; border-radius: 7px;
+    background: transparent; color: var(--secondary); font-size: 16px; line-height: 1; cursor: pointer;
+  }
+  .bin-close:hover { background: var(--row-hover); color: var(--primary); }
+  .bin-modal-sub { margin: 0; padding: 0 24px; color: var(--secondary); font-size: 11.5px; line-height: 1.45; }
+  .bin-body { display: flex; flex-direction: column; min-height: 0; margin-top: 20px; padding: 0 24px; }
+  .bin-list { display: flex; flex-direction: column; gap: 8px; padding: 2px; }
+  .bin-row {
+    display: grid; grid-template-columns: minmax(0,1fr) auto;
+    grid-template-areas: "title actions" "meta actions" "warn actions";
+    column-gap: 16px; align-items: start; padding: 12px 12px 11px;
+    border: 1px solid var(--border-soft); border-radius: 12px; background: var(--row);
+  }
+  .bin-row:hover { background: var(--row-hover); }
+  .bin-row-title { grid-area: title; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--primary); font-size: 14px; font-weight: 600; line-height: 1.45; letter-spacing: -.005em; }
+  .bin-row-meta { grid-area: meta; display: flex; flex-wrap: wrap; gap: 5px 12px; margin-top: 5px; color: var(--secondary); font-size: 12px; line-height: 1.5; }
+  .field { display: inline-flex; align-items: baseline; gap: 5px; min-width: 0; max-width: 100%; }
+  .field-label { flex: none; color: var(--secondary); font-size: 10px; font-weight: 600; line-height: 1.5; letter-spacing: .06em; text-transform: uppercase; }
+  .field-value { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--primary); font-size: 12px; font-weight: 500; line-height: 1.5; }
+  .field.path .field-value { max-width: 34ch; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11.5px; letter-spacing: -.01em; }
+  .field.mono .field-value { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11px; }
+  .bin-row-actions { grid-area: actions; display: flex; align-items: center; gap: 4px; align-self: center; flex: none; }
+  .bin-row-actions button {
+    height: 30px; padding: 0 10px; border: 1px solid transparent; border-radius: 8px;
+    background: transparent; color: var(--secondary); font: 500 11.5px/1 inherit; cursor: pointer; white-space: nowrap;
+  }
+  .bin-row-actions button:hover { background: var(--count-bg); color: var(--primary); }
+  .bin-row-actions .danger { color: var(--error); }
+  .bin-row-actions .danger:hover { background: rgba(229,72,77,.12); color: var(--error); }
+  .bin-row-warn {
+    grid-column: 1 / -1; justify-self: start; display: inline-flex; align-items: center; gap: 5px;
+    margin-top: 6px; padding: 2px 8px; border: 1px solid rgba(229,160,0,.22); border-radius: 999px;
+    background: rgba(229,160,0,.12); color: var(--primary); font-size: 10.5px; font-weight: 600; line-height: 1.5;
+  }
+  .warn-dot { width: 5px; height: 5px; flex: none; border-radius: 50%; background: var(--warn); }
+  .bin-footer {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+    margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border-soft);
+    color: var(--secondary); font-size: 11px; line-height: 1.6;
+  }
+  .bin-footer .stats { flex: 1 1 auto; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 8px;
+    border: 1px solid rgba(229,160,0,.28); border-radius: 999px; background: rgba(229,160,0,.10);
+    color: var(--primary); font-size: 10.5px; font-weight: 600; line-height: 1; white-space: nowrap; cursor: pointer;
+  }
+  .chip .chev { margin-left: 1px; opacity: .6; font-size: 11px; }
+  .link { padding: 0 2px; border: 0; background: transparent; color: var(--error); font: 500 11.5px/1 inherit; cursor: pointer; }
+  .link:hover { text-decoration: underline; }
+
+  /* ── page ─────────────────────────────────────────────────────────────── */
+  .bin-page { width: 100%; max-width: 1040px; margin: 0 auto; padding: 30px clamp(24px,4vw,48px) 48px; color: var(--primary); background: var(--card); }
+  .page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; }
+  .page-eyebrow { color: var(--secondary); font-size: 10.5px; font-weight: 600; line-height: 1.4; letter-spacing: .08em; text-transform: uppercase; }
+  .page-title-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+  .page-title { margin: 0; font-size: 20px; font-weight: 500; line-height: 28px; letter-spacing: -.01em; }
+  .count { display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border: 1px solid var(--border-soft); border-radius: 999px; background: var(--count-bg); color: var(--secondary); font-size: 10.5px; font-weight: 600; line-height: 1; white-space: nowrap; }
+  .page-sub { max-width: 62ch; margin: 6px 0 0; color: var(--secondary); font-size: 12px; line-height: 1.6; }
+  .page-aside { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; padding-bottom: 3px; }
+  .page-size { display: inline-flex; align-items: baseline; gap: 5px; white-space: nowrap; }
+  .page-size .field-label { font-size: 10px; }
+  .page-size b { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .page-list { display: flex; flex-direction: column; gap: 8px; margin-top: 18px; padding: 0; }
+  .page-list .bin-row { grid-template-areas: "title actions" "meta actions" "id actions"; padding: 14px 16px; background: var(--row); }
+  .page-list .bin-row-title { font-size: 15px; line-height: 22px; }
+  .page-list .bin-row-meta { margin-top: 6px; gap: 4px 14px; line-height: 18px; }
+  .page-id { grid-area: id; display: flex; align-items: baseline; gap: 6px; justify-self: start; margin-top: 6px; color: var(--tertiary); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11px; line-height: 16px; word-break: break-all; }
+  .page-id span:first-child { flex: none; font-size: 9px; font-weight: 600; letter-spacing: .08em; opacity: .75; }
+  .page-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border-soft); color: var(--secondary); font-size: 11px; }
+  .page-footer .link { margin-left: auto; }
+  .footnote { max-width: 780px; margin: 38px auto 0; color: #7a828e; font-size: 11.5px; line-height: 1.7; text-align: center; }
+  @media (max-width: 860px) {
+    body { padding: 36px 16px 56px; }
+    .stage { padding: 20px 12px; }
+    .bin-modal { width: 100%; }
+    .page-head { align-items: flex-start; flex-direction: column; gap: 12px; }
+    .page-aside { justify-content: flex-start; padding-bottom: 0; }
+    .page-list .bin-row { grid-template-columns: minmax(0,1fr); grid-template-areas: "title" "meta" "id" "actions"; }
+    .page-list .bin-row-actions { justify-self: start; margin-top: 8px; }
+  }
+</style>
+</head>
+<body>
+<main class="page">
+  <p class="eyebrow">DSH · session purge</p>
+  <h1>回收站：先看见会话，再看见属性</h1>
+  <p class="lede">弹窗负责“确认与操作”，页面负责“浏览与定位”。两者共用一套字阶：会话名最重，label 是安静的小索引，值回到正文；琥珀只留给保留期与即将到期的状态。</p>
+  <div class="rule">
+    <span><b>标题</b> 16 / 600（页面 20 / 500）</span>
+    <span><b>行标题</b> 14 / 600（页面 15 / 600）</span>
+    <span><b>Label</b> 10 / 600 · uppercase</span>
+    <span><b>值</b> 12 / 500</span>
+    <span><b>路径 / ID</b> mono 11.5 / 11</span>
+    <span><b>强调</b> 仅保留期</span>
+  </div>
+
+  <p class="section-label"><span>POPUP · LIGHT</span>弹窗 · 浅色</p>
+  <section class="stage theme-light">
+    <div class="bin-modal" role="dialog" aria-modal="true" aria-label="回收站">
+      <div class="bin-modal-head"><h2>回收站</h2><button class="bin-close" aria-label="关闭">✕</button></div>
+      <p class="bin-modal-sub">可随时复原；到期后由自动清理永久删除。</p>
+      <div class="bin-body">
+        <div class="bin-list">
+          <div class="bin-row">
+            <div class="bin-row-title">会话清理策略</div>
+            <div class="bin-row-meta">
+              <span class="field"><span class="field-label">删除于</span><span class="field-value">2 小时前</span></span>
+              <span class="field path"><span class="field-label">目录</span><span class="field-value">lootboot</span></span>
+              <span class="field"><span class="field-label">占用</span><span class="field-value">18.4 MB</span></span>
+              <span class="field mono"><span class="field-label">ID</span><span class="field-value">a1b2c3d4</span></span>
+            </div>
+            <div class="bin-row-actions"><button>复原</button><button class="danger">永久删除</button></div>
+          </div>
+          <div class="bin-row">
+            <div class="bin-row-title">长会话标题在窄窗口里保持单行省略，不挤压按钮</div>
+            <div class="bin-row-meta">
+              <span class="field"><span class="field-label">删除于</span><span class="field-value">28 天前</span></span>
+              <span class="field path"><span class="field-label">目录</span><span class="field-value">dsh-session-purge</span></span>
+              <span class="field"><span class="field-label">占用</span><span class="field-value">24.4 MB</span></span>
+              <span class="field mono"><span class="field-label">ID</span><span class="field-value">9f8e7d6c</span></span>
+            </div>
+            <div class="bin-row-warn"><span class="warn-dot"></span>将在下次自动清理时删除</div>
+            <div class="bin-row-actions"><button>复原</button><button class="danger">永久删除</button></div>
+          </div>
+        </div>
+        <div class="bin-footer">
+          <span class="stats">共 3 个会话 · 占用 42.8 MB</span>
+          <button class="chip"><span class="warn-dot"></span>保留 30 天<span class="chev">›</span></button>
+          <button class="link">清空回收站</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <p class="section-label"><span>POPUP · DARK</span>弹窗 · 深色</p>
+  <section class="stage dark theme-dark">
+    <div class="bin-modal" role="dialog" aria-modal="true" aria-label="回收站">
+      <div class="bin-modal-head"><h2>回收站</h2><button class="bin-close" aria-label="关闭">✕</button></div>
+      <p class="bin-modal-sub">可随时复原；到期后由自动清理永久删除。</p>
+      <div class="bin-body">
+        <div class="bin-list">
+          <div class="bin-row">
+            <div class="bin-row-title">会话清理策略</div>
+            <div class="bin-row-meta">
+              <span class="field"><span class="field-label">删除于</span><span class="field-value">2 小时前</span></span>
+              <span class="field path"><span class="field-label">目录</span><span class="field-value">lootboot</span></span>
+              <span class="field"><span class="field-label">占用</span><span class="field-value">18.4 MB</span></span>
+              <span class="field mono"><span class="field-label">ID</span><span class="field-value">a1b2c3d4</span></span>
+            </div>
+            <div class="bin-row-actions"><button>复原</button><button class="danger">永久删除</button></div>
+          </div>
+          <div class="bin-row">
+            <div class="bin-row-title">会话清理策略</div>
+            <div class="bin-row-meta">
+              <span class="field"><span class="field-label">删除于</span><span class="field-value">28 天前</span></span>
+              <span class="field path"><span class="field-label">目录</span><span class="field-value">lootboot</span></span>
+              <span class="field"><span class="field-label">占用</span><span class="field-value">24.4 MB</span></span>
+              <span class="field mono"><span class="field-label">ID</span><span class="field-value">9f8e7d6c</span></span>
+            </div>
+            <div class="bin-row-warn"><span class="warn-dot"></span>将在下次自动清理时删除</div>
+            <div class="bin-row-actions"><button>复原</button><button class="danger">永久删除</button></div>
+          </div>
+        </div>
+        <div class="bin-footer">
+          <span class="stats">共 3 个会话 · 占用 42.8 MB</span>
+          <button class="chip"><span class="warn-dot"></span>保留 30 天<span class="chev">›</span></button>
+          <button class="link">清空回收站</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <p class="section-label"><span>PAGE · LIGHT</span>回收站页面 · 浅色</p>
+  <section class="stage page-stage theme-light">
+    <div class="bin-page">
+      <div class="page-head">
+        <div>
+          <div class="page-eyebrow">已删除会话</div>
+          <div class="page-title-row"><h2 class="page-title">回收站</h2><span class="count">3 个会话</span></div>
+          <p class="page-sub">删除的会话会保留在这里，可在保留期内随时复原。</p>
+        </div>
+        <div class="page-aside">
+          <span class="page-size"><span class="field-label">占用</span><b>42.8 MB</b></span>
+          <button class="chip"><span class="warn-dot"></span>保留 30 天<span class="chev">›</span></button>
+        </div>
+      </div>
+      <div class="page-list">
+        <div class="bin-row">
+          <div class="bin-row-title">会话清理策略</div>
+          <div class="bin-row-meta">
+            <span class="field"><span class="field-label">删除于</span><span class="field-value">2 小时前</span></span>
+            <span class="field path"><span class="field-label">目录</span><span class="field-value">lootboot</span></span>
+            <span class="field"><span class="field-label">占用</span><span class="field-value">18.4 MB</span></span>
+          </div>
+          <div class="page-id"><span>ID</span><span>a1b2c3d4-1111-4a2b-9c3d-0123456789ab</span></div>
+          <div class="bin-row-actions"><button>复原</button><button class="danger">永久删除</button></div>
+        </div>
+        <div class="bin-row">
+          <div class="bin-row-title">长会话标题在页面里保持单行省略，完整标题悬停可见</div>
+          <div class="bin-row-meta">
+            <span class="field"><span class="field-label">删除于</span><span class="field-value">28 天前</span></span>
+            <span class="field path"><span class="field-label">目录</span><span class="field-value">dsh-session-purge</span></span>
+            <span class="field"><span class="field-label">占用</span><span class="field-value">24.4 MB</span></span>
+          </div>
+          <div class="page-id"><span>ID</span><span>9f8e7d6c-2222-4b3c-8d4e-9876543210fe</span></div>
+          <div class="bin-row-actions"><button>复原</button><button class="danger">永久删除</button></div>
+        </div>
+      </div>
+      <div class="page-footer"><span>永久删除不可恢复</span><button class="link">清空回收站</button></div>
+    </div>
+  </section>
+
+  <p class="footnote">预览由与 <code>client/client.js</code> 同值的字阶、间距和主题令牌手写而成；真实组件结构由 <code>tools/bin-ssr-probe.mjs</code> 验证。浏览器截图因本机沙箱拦截未生成。</p>
+</main>
+</body>
+</html>

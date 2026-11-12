@@ -46,6 +46,13 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 			"dialog.locateFail": "无法定位该会话，请重试或刷新页面后再试。",
 			"bin.title": "回收站",
 			"bin.count": "{n} 个会话",
+			"bin.overline": "已删除会话",
+			"bin.panel.subtitle": "可随时复原；到期后由自动清理永久删除。",
+			"bin.page.subtitle": "删除的会话会保留在这里，可在保留期内随时复原。",
+			"bin.page.footerHint": "永久删除不可恢复",
+			"bin.label.size": "占用",
+			"bin.label.deleted": "删除于",
+			"bin.label.id": "ID",
 			"bin.empty.title": "回收站是空的",
 			"bin.empty.hint": "删除的会话会先放到这里，可在保留期内随时复原。",
 			"bin.untitled": "未命名会话",
@@ -146,6 +153,13 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 			"dialog.locateFail": "Could not locate this session — retry or reload the page.",
 			"bin.title": "Recycle bin",
 			"bin.count": "{n} sessions",
+			"bin.overline": "Deleted sessions",
+			"bin.panel.subtitle": "Restore any time; expired sessions are permanently removed by auto-clean.",
+			"bin.page.subtitle": "Deleted sessions stay here and can be restored until the retention period ends.",
+			"bin.page.footerHint": "Permanent deletion cannot be undone",
+			"bin.label.size": "Size",
+			"bin.label.deleted": "Deleted",
+			"bin.label.id": "ID",
 			"bin.empty.title": "The recycle bin is empty",
 			"bin.empty.hint": "Deleted sessions land here and can be restored until the retention period ends.",
 			"bin.untitled": "Untitled session",
@@ -430,6 +444,99 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 		// A quiet chevron is the affordance: a dotted underline at 11px reads as
 		// clutter rather than as "this goes somewhere".
 		".sd-bin-policy-chevron{margin-left:2px;font-size:10px;opacity:.7}",
+		// ── recycle bin: visual refresh, same language as the move dialog ─────
+		// The structural `.sd-bin-body` / `.sd-bin-list` rules above are read by
+		// client-bin.test.mjs and stay untouched; this block only adds type,
+		// surface and spacing. A 50% secondary mix keeps 10–12px labels above
+		// 4.5:1 in both themes, exactly like the move dialog.
+		".sd-bin-card,.sd-bin-modal,.sd-bin-page{--sd-bin-secondary:var(--dsw-alias-label-secondary,#8a93a6);--sd-bin-secondary:color-mix(in srgb,var(--dsw-alias-label-secondary,#8a93a6) 50%,var(--dsw-alias-label-primary,#e8ecff))}",
+		".sd-bin-card{border-radius:16px;padding:0;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,.30),0 2px 8px rgba(0,0,0,.12)}",
+		".sd-bin-card .sd-bin-head{padding:18px 20px 0}",
+		".sd-bin-card .sd-bin-body{padding:0 20px}",
+		".sd-bin-card .sd-bin-footer{padding-bottom:18px}",
+		".sd-bin-head{display:flex;align-items:flex-start;gap:12px;font-size:16px;font-weight:600;color:var(--dsw-alias-label-primary,#e8ecff)}",
+		".sd-bin-head-mark{display:flex;align-items:center;justify-content:center;width:34px;height:34px;flex:none;border-radius:10px;color:var(--dsw-alias-label-primary,#e8ecff);background:rgba(229,160,0,.12);border:1px solid rgba(229,160,0,.20)}",
+		".sd-bin-head-mark .sd-icon{color:inherit}",
+		".sd-bin-head-text{min-width:0;flex:1 1 auto;padding-top:1px}",
+		".sd-bin-head-overline{font-size:10.5px;font-weight:600;line-height:1.4;letter-spacing:.08em;text-transform:uppercase;color:var(--sd-bin-secondary)}",
+		".sd-bin-head-title-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:3px}",
+		".sd-bin-head-title{font-size:16px;font-weight:600;line-height:1.3;letter-spacing:-.01em;color:var(--dsw-alias-label-primary,#e8ecff)}",
+		".sd-bin-head-sub{margin-top:3px;font-size:11.5px;line-height:1.45;color:var(--sd-bin-secondary)}",
+		".sd-bin-head-count{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:999px;background:rgba(127,127,127,.10);border:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.18));font-size:10.5px;font-weight:600;line-height:1;color:var(--sd-bin-secondary);white-space:nowrap}",
+		".sd-bin-head-close{margin-left:auto;display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;flex:none;padding:0;border:none;border-radius:7px;background:transparent;color:var(--sd-bin-secondary);font-size:15px;line-height:1;cursor:pointer}",
+		".sd-bin-head-close:hover{background:rgba(127,127,127,.12);color:var(--dsw-alias-label-primary,#e8ecff)}",
+		".sd-bin-modal.sd-bin-modal{width:min(760px,100%);max-height:calc(100vh - 48px);border-radius:16px;border:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.22));box-shadow:0 24px 64px rgba(0,0,0,.30),0 2px 8px rgba(0,0,0,.12);overflow:hidden}",
+		".sd-bin-modal.sd-bin-modal h2{font-size:16px;font-weight:600;line-height:1.3;letter-spacing:-.01em}",
+		".sd-bin-modal.sd-bin-modal p{font-size:11.5px;line-height:1.45;color:var(--sd-bin-secondary)}",
+		".sd-bin-list{display:flex;flex-direction:column;gap:8px;margin-top:12px;padding:2px}",
+		".sd-bin-row{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:\"title actions\" \"meta actions\" \"id actions\";column-gap:16px;row-gap:0;align-items:start;padding:12px 12px 11px;border:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.18));border-radius:12px;background:rgba(127,127,127,.045)}",
+		".sd-bin-row:hover{background:rgba(127,127,127,.07);border-color:var(--dsw-alias-border-l2,rgba(127,127,127,.30))}",
+		".sd-bin-row-main{display:contents}",
+		".sd-bin-row-title{grid-area:title;font-size:14px;font-weight:600;line-height:1.45;letter-spacing:-.005em;color:var(--dsw-alias-label-primary,#e8ecff);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
+		".sd-bin-row-meta{grid-area:meta;margin-top:5px;display:flex;flex-wrap:wrap;gap:5px 12px;font-size:12px;line-height:1.5;color:var(--sd-bin-secondary)}",
+		".sd-bin-row-meta > span{max-width:none;overflow:visible;white-space:nowrap;font-size:inherit;color:inherit}",
+		".sd-bin-field{display:inline-flex;align-items:baseline;gap:5px;min-width:0;max-width:100%}",
+		".sd-bin-field-label{flex:none;font-size:10px;font-weight:600;line-height:1.5;letter-spacing:.06em;text-transform:uppercase;color:var(--sd-bin-secondary)}",
+		".sd-bin-field-value{min-width:0;font-size:12px;font-weight:500;line-height:1.5;color:var(--dsw-alias-label-primary,#e8ecff);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
+		".sd-bin-field-path .sd-bin-field-value{max-width:34ch;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11.5px;font-weight:500;letter-spacing:-.01em}",
+		".sd-bin-row-id{grid-area:id;display:flex;align-items:baseline;gap:6px;margin-top:5px;max-width:100%;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;line-height:16px;color:var(--dsw-alias-label-tertiary,#77808f);word-break:break-all}",
+		".sd-bin-row-id-label{flex:none;font-size:9px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;opacity:.75}",
+		".sd-bin-row-id-value{min-width:0}",
+		".sd-bin-row-warn,.sd-bin-row-err{grid-column:1/-1;margin-top:6px;font-size:11.5px;line-height:1.5}",
+		".sd-bin-row-warn{display:inline-flex;align-items:center;gap:5px;justify-self:start;padding:2px 8px;border-radius:999px;background:rgba(229,160,0,.12);border:1px solid rgba(229,160,0,.22);color:var(--dsw-alias-label-primary,#e8ecff);font-size:10.5px;font-weight:600}",
+		".sd-bin-row-warn-dot{width:5px;height:5px;flex:none;border-radius:50%;background:var(--dsw-alias-state-warn-primary,#e5a000)}",
+		".sd-bin-row-err{color:var(--dsw-alias-state-error-primary,#ff8080);word-break:break-word}",
+		".sd-bin-row-actions{grid-area:actions;display:flex;align-items:center;gap:4px;align-self:center;flex:none}",
+		".sd-bin-row-actions .sd-dlg-btn{height:30px;padding:0 10px;border-radius:8px;border-color:transparent;background:transparent;color:var(--sd-bin-secondary);font-size:11.5px;font-weight:500}",
+		".sd-bin-row-actions .sd-dlg-btn:hover{background:rgba(127,127,127,.10);border-color:transparent;color:var(--dsw-alias-label-primary,#e8ecff)}",
+		".sd-bin-row-actions .sd-dlg-btn-danger{background:transparent;border-color:transparent;color:var(--dsw-alias-state-error-primary,#e5484d);font-weight:500}",
+		".sd-bin-row-actions .sd-dlg-btn-danger:hover{background:rgba(229,72,77,.12);color:var(--dsw-alias-state-error-primary,#e5484d);filter:none}",
+		".sd-bin-confirm{margin-top:10px;display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:10px 12px;border:1px solid rgba(229,72,77,.24);border-radius:10px;background:rgba(229,72,77,.09);font-size:11.5px;line-height:1.55}",
+		".sd-bin-confirm .sd-dlg-btn{height:28px;font-size:11.5px}",
+		".sd-bin-footer{margin-top:12px;padding-top:10px;border-top:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.16));display:flex;flex-wrap:wrap;align-items:center;gap:10px;font-size:11px;color:var(--sd-bin-secondary)}",
+		".sd-bin-footer-left{flex:1 1 auto;display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;line-height:1.6}",
+		".sd-bin-footer-hint{color:var(--sd-bin-secondary)}",
+		".sd-bin-footer-actions{display:flex;align-items:center;gap:8px;flex:none;margin-left:auto}",
+		".sd-bin-link{height:24px;padding:0 2px;border:none;background:transparent;color:var(--dsw-alias-state-error-primary,#e5484d);font-size:11.5px;font-weight:500;cursor:pointer;white-space:nowrap}",
+		".sd-bin-link:hover{text-decoration:underline}",
+		".sd-bin-policy-btn{padding:0;border:none;background:transparent;color:inherit;font-size:11px;cursor:pointer}",
+		".sd-bin-policy-chip{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 8px;border:1px solid rgba(229,160,0,.28);border-radius:999px;background:rgba(229,160,0,.10);color:var(--dsw-alias-label-primary,#e8ecff);font-size:10.5px;font-weight:600;line-height:1;white-space:nowrap;cursor:pointer}",
+		".sd-bin-policy-chip:hover{background:rgba(229,160,0,.16);color:var(--dsw-alias-label-primary,#e8ecff);text-decoration:none}",
+		".sd-bin-policy-chip.is-off{border-color:var(--dsw-alias-border-l1,rgba(127,127,127,.18));background:rgba(127,127,127,.08);color:var(--sd-bin-secondary)}",
+		".sd-bin-policy-chip.is-off:hover{background:rgba(127,127,127,.12)}",
+		".sd-bin-policy-dot{width:5px;height:5px;flex:none;border-radius:50%;background:var(--dsw-alias-state-warn-primary,#e5a000)}",
+		".sd-bin-policy-chip .sd-bin-policy-chevron{margin-left:1px;font-size:11px;opacity:.6}",
+		".sd-bin-empty{padding:44px 12px 40px;font-size:13px;font-weight:600;color:var(--dsw-alias-label-primary,#e8ecff)}",
+		".sd-bin-empty-hint{max-width:42ch;margin:6px auto 0;font-size:11.5px;line-height:1.6;color:var(--sd-bin-secondary)}",
+		".sd-bin-status{padding:28px 12px;font-size:12px;color:var(--sd-bin-secondary)}",
+		".sd-bin-notice,.sd-bin-error{margin-top:10px;padding:8px 10px;border-radius:9px;font-size:11.5px;line-height:1.55}",
+		".sd-bin-notice{border:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.18));background:rgba(127,127,127,.06);color:var(--sd-bin-secondary)}",
+		".sd-bin-error{border:1px solid rgba(229,72,77,.24);background:rgba(229,72,77,.08);color:var(--dsw-alias-state-error-primary,#ff8080);word-break:break-word}",
+		".sd-bin-more{height:30px;margin-top:8px;border-radius:9px;font-size:11.5px;border-color:var(--dsw-alias-border-l2,rgba(127,127,127,.30));color:var(--sd-bin-secondary)}",
+		// ── page header and page rows ───────────────────────────────────────
+		".sd-bin-page{padding:0 clamp(24px,4vw,48px) 52px}",
+		".sd-bin-page-inner{max-width:1040px;gap:18px;padding-top:30px}",
+		".sd-bin-page-head{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin:0;font-size:inherit;font-weight:400;line-height:normal;color:var(--dsw-alias-label-primary,#e8ecff)}",
+		".sd-bin-page-head-main{min-width:0;flex:1 1 auto}",
+		".sd-bin-page-eyebrow{font-size:10.5px;font-weight:600;line-height:1.4;letter-spacing:.08em;text-transform:uppercase;color:var(--sd-bin-secondary)}",
+		".sd-bin-page-title-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:4px}",
+		".sd-bin-page-title{font-size:20px;font-weight:500;line-height:28px;letter-spacing:-.01em;color:var(--dsw-alias-label-primary,#e8ecff);margin:0}",
+		".sd-bin-page-sub{margin:6px 0 0;max-width:62ch;font-size:12px;line-height:1.6;color:var(--sd-bin-secondary)}",
+		".sd-bin-page-head-aside{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end;padding-bottom:3px}",
+		".sd-bin-page-size{display:inline-flex;align-items:baseline;gap:5px;white-space:nowrap}",
+		".sd-bin-page-size-label{font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--sd-bin-secondary)}",
+		".sd-bin-page-size-value{font-size:12px;font-weight:600;color:var(--dsw-alias-label-primary,#e8ecff);font-variant-numeric:tabular-nums}",
+		".sd-bin-page-head .sd-bin-head-count{height:20px;padding:0 8px;border-radius:999px;background:rgba(127,127,127,.10);border:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.18));font-size:10.5px;font-weight:600;line-height:1;color:var(--sd-bin-secondary)}",
+		".sd-bin-page-body{display:flex;flex-direction:column;min-width:0}",
+		".sd-bin-page .sd-bin-row{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:\"title actions\" \"meta actions\" \"id actions\";column-gap:20px;row-gap:0;align-items:start;padding:14px 16px;border:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.18));border-radius:12px;background:rgba(127,127,127,.04)}",
+		".sd-bin-page .sd-bin-row:hover{background:rgba(127,127,127,.065);border-color:var(--dsw-alias-border-l2,rgba(127,127,127,.30))}",
+		".sd-bin-page .sd-bin-row-title{grid-area:title;font-size:15px;font-weight:600;line-height:22px}",
+		".sd-bin-page .sd-bin-row-meta{grid-area:meta;margin-top:6px;gap:4px 14px;font-size:12px;line-height:18px}",
+		".sd-bin-page .sd-bin-row-meta > span + span::before{content:none;margin:0}",
+		".sd-bin-page .sd-bin-row-id{grid-area:id;justify-self:start;text-align:left;margin-top:6px;font-size:11px;line-height:16px}",
+		".sd-bin-page .sd-bin-row-actions{grid-area:actions;justify-self:end;align-self:center;margin-top:0}",
+		".sd-bin-page .sd-bin-row-warn,.sd-bin-page .sd-bin-row-err{grid-column:1/-1}",
+		"@container sd-bin (max-width:780px){.sd-bin-page-head{align-items:flex-start;flex-direction:column;gap:12px}.sd-bin-page-head-aside{justify-content:flex-start;padding-bottom:0}.sd-bin-page .sd-bin-row{grid-template-columns:minmax(0,1fr);grid-template-areas:\"title\" \"meta\" \"id\" \"actions\";row-gap:0}.sd-bin-page .sd-bin-row-actions{grid-row:auto;justify-self:start;margin-top:8px}}",
 		// ── settings page ────────────────────────────────────────────────────
 		".sd-set{display:flex;flex-direction:column;gap:14px;max-width:600px;font-size:12px;color:var(--dsw-alias-label-primary,#e8ecff)}",
 		".sd-set-heading{font-size:13px;font-weight:600}",
@@ -2111,16 +2218,22 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 	 */
 	function renderBinRow(entry, state, variant) {
 		var wide = variant === "page";
-		var meta = [{ key: "time", text: tr("bin.deletedAt", { when: formatRelativeTime(entry.deletedAt) }) }];
+		var meta = [{
+			key: "time", label: tr("bin.label.deleted"),
+			value: formatRelativeTime(entry.deletedAt)
+		}];
 		if (typeof entry.cwd === "string" && entry.cwd !== "") {
-			// The dialog only has room for the folder's name; the page still shows
-			// that (it is what people recognise) but names the full path on hover.
-			meta.push({ key: "cwd", text: baseName(entry.cwd), title: wide ? entry.cwd : undefined });
+			// The label names the field; the value stays a value. The page also
+			// exposes the full path on hover for support/debugging.
+			meta.push({
+				key: "cwd", label: tr("dialog.cwdLabel"), value: baseName(entry.cwd),
+				path: true, title: wide ? entry.cwd : undefined
+			});
 		}
 		if (typeof entry.sizeBytes === "number" && entry.sizeBytes > 0) {
-			meta.push({ key: "size", text: formatBytes(entry.sizeBytes) });
+			meta.push({ key: "size", label: tr("bin.label.size"), value: formatBytes(entry.sizeBytes) });
 		}
-		if (!wide) meta.push({ key: "id", text: shortSessionId(entry.id) });
+		if (!wide) meta.push({ key: "id", label: tr("bin.label.id"), value: shortSessionId(entry.id), mono: true });
 		var parts = [
 			React.createElement("div", {
 				key: "title", className: "sd-bin-row-title",
@@ -2128,7 +2241,16 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 			}, displayTitle(entry)),
 			React.createElement("div", { key: "meta", className: "sd-bin-row-meta" },
 				meta.map(function (item) {
-					return React.createElement("span", { key: item.key, title: item.title }, item.text);
+					return React.createElement("span", {
+						key: item.key,
+						className: "sd-bin-field"
+							+ (item.path ? " sd-bin-field-path" : "")
+							+ (item.mono ? " sd-bin-field-mono" : ""),
+						title: item.title
+					}, [
+						React.createElement("span", { key: "label", className: "sd-bin-field-label" }, item.label),
+						React.createElement("span", { key: "value", className: "sd-bin-field-value" }, item.value)
+					]);
 				}))
 		];
 		if (wide) {
@@ -2144,7 +2266,10 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 			]));
 		}
 		if (isExpiringEntry(entry)) {
-			parts.push(React.createElement("div", { key: "expiring", className: "sd-bin-row-warn" }, tr("bin.expiring")));
+			parts.push(React.createElement("div", { key: "expiring", className: "sd-bin-row-warn" }, [
+				React.createElement("span", { key: "dot", className: "sd-bin-row-warn-dot", "aria-hidden": "true" }),
+				React.createElement("span", { key: "text" }, tr("bin.expiring"))
+			]));
 		}
 		var rowError = state.rowErrors === undefined ? undefined : state.rowErrors[entry.id];
 		if (typeof rowError === "string" && rowError !== "") {
@@ -2193,22 +2318,40 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 		return React.createElement("div", { key: "confirm", className: "sd-bin-confirm" }, children);
 	}
 
-	function renderBinFooter(state, count) {
-		var left = [React.createElement("span", { key: "stats" },
-			tr("bin.footer", { n: count, size: formatBytes(state.totalBytes) }))];
+	/** The retention line as a quiet amber chip; the dot is the only amber. */
+	function renderBinPolicyChip() {
 		var policy = binPolicyText();
-		if (policy !== null) {
-			// The policy is a way into its own settings page, not just text.
-			left.push(React.createElement("span", { key: "sep" }, " · "));
-			left.push(React.createElement("button", {
-				key: "policy", type: "button", className: "sd-bin-policy-btn",
-				title: tr("settings.section"), onClick: openSettingsFromBin
-			}, [
-				policy,
-				React.createElement("span", {
-					key: "chevron", className: "sd-bin-policy-chevron", "aria-hidden": "true"
-				}, "›")
-			]));
+		if (policy === null) return null;
+		var settings = binStore.get().settings;
+		var off = !(settings !== null && settings !== undefined
+			&& settings.autoClean === true && settings.retentionDays > 0);
+		return React.createElement("button", {
+			key: "policy", type: "button",
+			className: "sd-bin-policy-btn sd-bin-policy-chip" + (off ? " is-off" : ""),
+			title: tr("settings.section"), onClick: openSettingsFromBin
+		}, [
+			off ? null : React.createElement("span", {
+				key: "dot", className: "sd-bin-policy-dot", "aria-hidden": "true"
+			}),
+			React.createElement("span", { key: "text" }, policy),
+			React.createElement("span", {
+				key: "chevron", className: "sd-bin-policy-chevron", "aria-hidden": "true"
+			}, "›")
+		]);
+	}
+
+	function renderBinFooter(state, count, variant) {
+		var page = variant === "page";
+		var left = [];
+		if (page) {
+			left.push(React.createElement("span", {
+				key: "hint", className: "sd-bin-footer-hint"
+			}, tr("bin.page.footerHint")));
+		} else {
+			left.push(React.createElement("span", { key: "stats" },
+				tr("bin.footer", { n: count, size: formatBytes(state.totalBytes) })));
+			var policy = renderBinPolicyChip();
+			if (policy !== null) left.push(policy);
 		}
 		var actions = [];
 		if (count > 0) {
@@ -2263,7 +2406,7 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 			children.push(React.createElement("div", { key: "error", className: "sd-bin-error" }, state.error));
 		}
 		if (state.confirm !== null) children.push(renderBinConfirm(state.confirm));
-		children.push(renderBinFooter(state, entries.length));
+		children.push(renderBinFooter(state, entries.length, variant));
 		// Wrapper matters: every rule above assumes the body is a flex column
 		// (`.sd-bin-body`), which is what makes the list scroll and keeps the
 		// confirm strip and footer pinned below it.
@@ -2285,13 +2428,14 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 			return function () { document.removeEventListener("keydown", onKey); };
 		}, [state.open, Modal]);
 		if (state.open !== true) return null;
-		var body = React.createElement(TrashPanelBody, { state: state });
+		var body = React.createElement(TrashPanelBody, { key: "body", state: state });
 		if (Modal !== null) {
 			return React.createElement(Modal, {
 				open: true,
 				onClose: closeTrashPanel,
 				title: tr("bin.title"),
 				closeLabel: tr("bin.close"),
+				description: tr("bin.panel.subtitle"),
 				// The shell caps a modal card at 380px; this list needs the room.
 				className: "sd-bin-modal"
 			}, body);
@@ -2306,14 +2450,27 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 				"aria-modal": "true", "aria-label": tr("bin.title")
 			}, [
 				React.createElement("div", { key: "head", className: "sd-bin-head" }, [
-					React.createElement("span", {
-						key: "icon", className: "sd-icon",
-						dangerouslySetInnerHTML: { __html: ICON }
-					}),
-					React.createElement("span", { key: "title" }, tr("bin.title")),
-					React.createElement("span", {
-						key: "count", className: "sd-bin-head-count"
-					}, tr("bin.count", { n: state.entries.length })),
+					React.createElement("span", { key: "mark", className: "sd-bin-head-mark" },
+						React.createElement("span", {
+							key: "icon", className: "sd-icon",
+							dangerouslySetInnerHTML: { __html: ICON }
+						})),
+					React.createElement("div", { key: "text", className: "sd-bin-head-text" }, [
+						React.createElement("div", {
+							key: "overline", className: "sd-bin-head-overline"
+						}, tr("bin.overline")),
+						React.createElement("div", { key: "title-row", className: "sd-bin-head-title-row" }, [
+							React.createElement("span", {
+								key: "title", className: "sd-bin-head-title"
+							}, tr("bin.title")),
+							React.createElement("span", {
+								key: "count", className: "sd-bin-head-count"
+							}, tr("bin.count", { n: state.entries.length }))
+						]),
+						React.createElement("div", {
+							key: "sub", className: "sd-bin-head-sub"
+						}, tr("bin.panel.subtitle"))
+					]),
 					React.createElement("button", {
 						key: "close", type: "button", className: "sd-bin-head-close",
 						"aria-label": tr("bin.close"), onClick: closeTrashPanel
@@ -2359,6 +2516,7 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 		React.useEffect(function () {
 			void refreshBin();
 		}, []);
+		var count = state.entries.length;
 		return React.createElement("div", {
 			className: "sd-bin-page",
 			role: "region",
@@ -2368,10 +2526,33 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 				// No glyph in the page head: the title reads as a page heading, and
 				// the sidebar row above it already carries the icon.
 				React.createElement("div", { key: "head", className: "sd-bin-page-head" }, [
-					React.createElement("span", { key: "title", className: "sd-bin-page-title" }, tr("bin.title")),
-					React.createElement("span", {
-						key: "count", className: "sd-bin-head-count"
-					}, tr("bin.count", { n: state.entries.length }))
+					React.createElement("div", { key: "main", className: "sd-bin-page-head-main" }, [
+						React.createElement("div", {
+							key: "eyebrow", className: "sd-bin-page-eyebrow"
+						}, tr("bin.overline")),
+						React.createElement("div", { key: "title-row", className: "sd-bin-page-title-row" }, [
+							React.createElement("div", {
+								key: "title", className: "sd-bin-page-title"
+							}, tr("bin.title")),
+							React.createElement("span", {
+								key: "count", className: "sd-bin-head-count"
+							}, tr("bin.count", { n: count }))
+						]),
+						React.createElement("p", {
+							key: "sub", className: "sd-bin-page-sub"
+						}, tr("bin.page.subtitle"))
+					]),
+					React.createElement("div", { key: "aside", className: "sd-bin-page-head-aside" }, [
+						React.createElement("span", { key: "size", className: "sd-bin-page-size" }, [
+							React.createElement("span", {
+								key: "label", className: "sd-bin-page-size-label"
+							}, tr("bin.label.size")),
+							React.createElement("span", {
+								key: "value", className: "sd-bin-page-size-value"
+							}, formatBytes(state.totalBytes))
+						]),
+						renderBinPolicyChip()
+					])
 				]),
 				React.createElement("div", { key: "body", className: "sd-bin-page-body" },
 					React.createElement(TrashPanelBody, { state: state, variant: "page" }))
@@ -3091,7 +3272,8 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 		// The /trash response contract: success leaves the dialog for the toast.
 		trashOutcome: trashOutcome,
 		TrashPanelHost: TrashPanelHost,
-		TrashPanelBody: TrashPanelBody
+		TrashPanelBody: TrashPanelBody,
+		TrashPage: TrashPage
 	};
 	return module.exports;
 }});
