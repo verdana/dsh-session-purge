@@ -375,7 +375,6 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 		".sd-bin-page .sd-bin-row-id-label{flex:none;font-size:9px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;opacity:.65}",
 		".sd-bin-page .sd-bin-row-id-value{min-width:0}",
 		".sd-bin-page .sd-bin-row-actions{grid-area:actions;align-self:center;flex:none}",
-		".sd-bin-page .sd-bin-row-warn,.sd-bin-page .sd-bin-row-err{grid-column:1/-1}",
 		// Narrow column (sidebar expanded on a laptop, or a split window): drop to
 		// one column, left-align the id and move the actions under the text. 780px is
 		// where the title starts losing to the id + button columns (~275 + ~180 + gaps).
@@ -395,10 +394,7 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 		// doubled class raises specificity so the override cannot lose a
 		// stylesheet-order race with the shell's own CSS.
 		".sd-bin-modal.sd-bin-modal{width:min(760px,100%)}",
-		".sd-bin-head{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--dsw-alias-label-primary,#e8ecff)}",
 		".sd-bin-head .sd-icon{color:var(--dsw-alias-label-secondary,#8a93a6)}",
-		".sd-bin-head-count{font-size:11px;font-weight:400;color:var(--dsw-alias-label-secondary,#8a93a6)}",
-		".sd-bin-head-close{margin-left:auto;padding:2px 6px;border:none;border-radius:6px;background:transparent;color:var(--dsw-alias-label-secondary,#8a93a6);font-size:14px;line-height:1;cursor:pointer}",
 		".sd-bin-head-close:hover{background:var(--dsw-alias-bg-overlay-2,rgba(127,127,127,.14));color:var(--dsw-alias-label-primary,#e8ecff)}",
 		// The panel body has to own a layout context, or the list below has no
 		// definite height to overflow against: as a plain block child of the card
@@ -419,27 +415,19 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 		".sd-bin-row{display:flex;align-items:flex-start;gap:10px;padding:8px 4px;border-bottom:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.18))}",
 		".sd-bin-row:last-child{border-bottom:none}",
 		".sd-bin-row-main{flex:1 1 auto;min-width:0}",
-		".sd-bin-row-title{font-size:12px;color:var(--dsw-alias-label-primary,#e8ecff);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
-		".sd-bin-row-meta{margin-top:3px;display:flex;gap:8px;flex-wrap:wrap;font-size:11px;color:var(--dsw-alias-label-secondary,#8a93a6)}",
 		// One long project path must not turn a row into three lines.
 		".sd-bin-row-meta > span{max-width:26ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
 		".sd-bin-row-warn{margin-top:4px;font-size:11px;color:var(--dsw-alias-state-warn-primary,#e5a000)}",
 		".sd-bin-row-err{margin-top:4px;font-size:11px;color:var(--dsw-alias-state-error-primary,#ff8080);word-break:break-word}",
-		".sd-bin-row-actions{display:flex;align-items:center;gap:6px;flex:none}",
 		".sd-bin-empty{padding:30px 12px;text-align:center;font-size:12px;color:var(--dsw-alias-label-primary,#e8ecff)}",
-		".sd-bin-empty-hint{margin-top:6px;font-size:11px;line-height:1.6;color:var(--dsw-alias-label-secondary,#8a93a6)}",
 		".sd-bin-status{padding:16px 12px;text-align:center;font-size:12px;color:var(--dsw-alias-label-secondary,#8a93a6)}",
 		".sd-bin-notice{margin-top:8px;font-size:11px;line-height:1.6;color:var(--dsw-alias-label-secondary,#8a93a6)}",
 		".sd-bin-error{margin-top:8px;font-size:11px;line-height:1.6;color:var(--dsw-alias-state-error-primary,#ff8080);word-break:break-word}",
 		".sd-bin-confirm{margin-top:8px;display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;background:rgba(229,72,77,.12);font-size:11px;color:var(--dsw-alias-label-primary,#e8ecff)}",
 		".sd-bin-confirm-text{flex:1 1 auto;line-height:1.6;word-break:break-word}",
-		".sd-bin-footer{margin-top:10px;display:flex;flex-wrap:wrap;align-items:center;gap:10px;font-size:11px;color:var(--dsw-alias-label-secondary,#8a93a6)}",
 		// Stats + policy take a full row of their own, so a narrow modal never
 		// breaks a phrase in half; the action row follows.
 		".sd-bin-footer-left{flex:1 1 100%;min-width:0;line-height:1.7}",
-		".sd-bin-footer-actions{display:flex;align-items:center;gap:8px;flex:none;margin-left:auto}",
-		".sd-bin-link{padding:0;border:none;background:transparent;color:var(--dsw-alias-state-error-primary,#ff8080);font-size:11px;cursor:pointer;white-space:nowrap}",
-		".sd-bin-policy-btn{padding:0;border:none;background:transparent;color:inherit;font-size:11px;cursor:pointer}",
 		".sd-bin-policy-btn:hover{color:var(--dsw-alias-label-primary,#e8ecff);text-decoration:underline}",
 		// A quiet chevron is the affordance: a dotted underline at 11px reads as
 		// clutter rather than as "this goes somewhere".
@@ -498,7 +486,6 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 		".sd-bin-footer-hint{color:var(--sd-bin-secondary)}",
 		".sd-bin-footer-actions{display:flex;align-items:center;gap:8px;flex:none;margin-left:auto}",
 		".sd-bin-link{height:24px;padding:0 2px;border:none;background:transparent;color:var(--dsw-alias-state-error-primary,#e5484d);font-size:11.5px;font-weight:500;cursor:pointer;white-space:nowrap}",
-		".sd-bin-link:hover{text-decoration:underline}",
 		".sd-bin-policy-btn{padding:0;border:none;background:transparent;color:inherit;font-size:11px;cursor:pointer}",
 		".sd-bin-policy-chip{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 8px;border:1px solid rgba(229,160,0,.28);border-radius:999px;background:rgba(229,160,0,.10);color:var(--dsw-alias-label-primary,#e8ecff);font-size:10.5px;font-weight:600;line-height:1;white-space:nowrap;cursor:pointer}",
 		".sd-bin-policy-chip:hover{background:rgba(229,160,0,.16);color:var(--dsw-alias-label-primary,#e8ecff);text-decoration:none}",
@@ -507,7 +494,7 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 		".sd-bin-policy-dot{width:5px;height:5px;flex:none;border-radius:50%;background:var(--dsw-alias-state-warn-primary,#e5a000)}",
 		".sd-bin-policy-chip .sd-bin-policy-chevron{margin-left:1px;font-size:11px;opacity:.6}",
 		".sd-bin-empty{padding:44px 12px 40px;font-size:13px;font-weight:600;color:var(--dsw-alias-label-primary,#e8ecff)}",
-		".sd-bin-empty-hint{max-width:42ch;margin:6px auto 0;font-size:11.5px;line-height:1.6;color:var(--sd-bin-secondary)}",
+		".sd-bin-empty-hint{max-width:64ch;margin:6px auto 0;font-size:11.5px;line-height:1.6;color:var(--sd-bin-secondary)}",
 		".sd-bin-status{padding:28px 12px;font-size:12px;color:var(--sd-bin-secondary)}",
 		".sd-bin-notice,.sd-bin-error{margin-top:10px;padding:8px 10px;border-radius:9px;font-size:11.5px;line-height:1.55}",
 		".sd-bin-notice{border:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.18));background:rgba(127,127,127,.06);color:var(--sd-bin-secondary)}",
