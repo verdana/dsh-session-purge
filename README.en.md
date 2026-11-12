@@ -253,10 +253,8 @@ plugin, restart `dsh web` once; a page reload alone will not show the new footer
   in tooltip and logging behavior; none of the contracts this plugin relies on
   changed anywhere between rc.2 and rc.5 (see
   [docs/compat-0.2.1-rc.5.md](https://github.com/verdana/dsh-session-purge/blob/main/docs/compat-0.2.1-rc.5.md)).
-  The menu and sidebar injection for 0.1.7-rc.2 / 0.1.5-rc.3 use the same DOM detection
-  and are expected to work, but were not re-verified in this round; 0.1.5-rc.3 has no
-  settings extension point, so the **settings page is unavailable there** — use the
-  HTTP routes above instead.
+  The supported line is 0.2.x (0.2.0-rc.2 onward); the 0.1.x menu and prop shapes
+  are no longer accommodated.
 - Node.js `^22.19.0 || >=24` (the `engines` field in `package.json`; what matters
   in practice is the Node your `dsh web` runs on).
 - Zero dependencies, no build step, one codebase for Windows / Linux / macOS.

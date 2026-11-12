@@ -21,7 +21,9 @@
 - `docs/recycle-bin/` — 回收站的产品规格（spec.md）与技术设计（design.md）
 - `docs/compat-0.2.1-rc.2.md` — 0.2.1-rc.2 vs 0.2.0-rc.2 的历史清查报告（0.5.0 时期，行号与测试数已过时）
 - `docs/compat-0.2.1-rc.4.md` — rc.2 → rc.4 的增量核查（历史切片）
-- `docs/compat-0.2.1-rc.5.md` — rc.4 → rc.5 的增量核查（当前支持面的依据）
+- `docs/compat-0.2.1-rc.5.md` — rc.4 → rc.5 的增量核查（历史切片）
+- `docs/compat-0.2.2-rc.1.md` — 0.2.2-alpha.3 → rc.1 的增量核查（当时只改了 vendor 版本号）
+- `docs/compat-0.2.2-rc.2.md` — rc.1 → rc.2 的增量核查（当前支持面的依据）
 
 ## 本地开发
 
@@ -149,15 +151,15 @@ npm run release -- --bump patch --smoke   # 真发布并冒烟
 ## 跨版本兼容
 
 浏览器半靠 DOM 嗅探会话行菜单（上游没有可用扩展点），菜单形状是主要需要随版本走
-的部分：
+的部分。支持面为 0.2.x（0.2.0-rc.2 起）；0.1.x 的菜单与 props 差异已不再适配：
 
-| | 0.1.5-rc.3 | 0.1.7-rc.2 | 0.2.1-rc.2 – rc.5 |
-|---|---|---|---|
-| 菜单项 | 重命名 / 分叉会话 / 归档会话 | 置顶会话 + 上面三项，后面可能还有插件行 | 在 0.1.7 基础上，归档后多了「复制 Session ID / Copy Session ID」 |
-| 按钮文本 | 纯标签 | 标签 + 快捷键键帽（`aria-hidden` 的 `<span>`） | 同 0.1.7；「复制 Session ID」没有绑定，因而没有键帽 |
-| 行组件 props | `onFork` / `onArchive` | 已移除（动作走 slot）；`onOpen` / `onRenameRequest` 仍在 | 同 0.1.7 |
-| 设置入口 | 侧栏「设置」按钮 | 侧栏「设置」按钮 | **账号菜单（账号菜单 → 设置）**：`settings.launcher` 被账号菜单占用，不再有独立的「设置」按钮 |
-| 侧栏面板 | — | — | rc.3 起「插件 / 自动化任务 / 更多」成为侧栏面板行（`sidebar.panellist`）；插件的垃圾桶图标挂在**工作区行**的 `.headerActions` 上，与这些面板行互不影响 |
+| | 0.2.1-rc.2 – rc.5 | 0.2.2-rc.2 |
+|---|---|---|
+| 菜单项 | 置顶会话 + 重命名 / 分叉会话 / 归档会话，归档后多「复制 Session ID / Copy Session ID」 | 同 0.2.1（`session-actions/` 目录零 diff）；归档行带 `separatorBefore` 分隔线 |
+| 按钮文本 | 标签 + 快捷键键帽（`aria-hidden` 的 `<span>`）；「复制 Session ID」没有绑定，因而没有键帽 | 同 0.2.1 |
+| 行组件 props | 动作走 slot；props 只有 `onOpen` / `onRenameRequest` | 同 0.2.1 |
+| 设置入口 | **账号菜单（账号菜单 → 设置）**：`settings.launcher` 被账号菜单占用，不再有独立的「设置」按钮 | 同 0.2.1 |
+| 侧栏面板 | rc.3 起「插件 / 自动化任务 / 更多」成为侧栏面板行（`sidebar.panellist`）；插件的垃圾桶图标挂在**工作区行**的 `.headerActions` 上，与这些面板行互不影响 | 同 0.2.1；行 ⋯ 触发器改由共享 `contextMenu.button` 工厂槽渲染，`aria-label` / `data-context-menu-trigger` / `span.rowActions` 全部保留 |
 
 插件按「内置三项作为有序子序列」识别菜单（不要求恰好三项），按 `aria-hidden` 过滤
 键帽，把「删除会话」插在「归档会话」之后。多出来的置顶行、插件行和 0.2.1 的
@@ -168,6 +170,25 @@ npm run release -- --bump patch --smoke   # 真发布并冒烟
 0.2.1 的账号菜单两步路径（点开账号菜单，再点其中的「设置」菜单项）；两条都不存在时
 只显示提示文案，不会产生死点击。改这段逻辑时同步改 `tools/client-bin.test.mjs` 的
 两个 pure picker 用例。
+
+### 0.2.2 起的两个语义变化
+
+`0.2.2-rc.2` 有两条不是 DOM 形状、但会影响插件语义的上游改动。核对细节见
+`docs/compat-0.2.2-rc.2.md`。
+
+- **`agents.enter()` 只收一个参数**：`AgentEntry.owner` 字段、`ClientAgentOptions` 的
+  `parentAgent` / `isOwnedBy` / `roots()` 都已删除。插件失败回滚仍写
+  `agents.enter(agent, agentEntry.owner)`（`lib/index.js:743`）——多传的参数被忽略、读到的
+  `owner` 是 `undefined`，**不抛错**，但「以 owner 身份重新登记」的语义不再存在：回滚退化为
+  「只登记、不持有 teardown」。这段代码**不按版本分支**（旧版继续传 owner 才有意义），判定
+  交给上游。
+- **`workspace/session-unarchiving` 钩子没有 try/catch**：rc.2 的 `unarchiveSession` 在移除
+  归档标记**之前** `await ctx.parallel('workspace/session-unarchiving', { sessionId })`
+  （`workspace/workspace/src/index.ts:426`）。监听器抛错会让调用方拿到异常，而会话文件已经搬回
+  `sessions/`——「恢复成功但仍是归档态」，刷新不自愈。当前只有实验性 worktree 插件监听该钩子
+  （`packages/experimental/worktree/src/archive.ts:87`），官方 bundle 未装配，所以是条件性风险。
+  插件侧 `unarchiveSession` 已包 try/catch、失败只记 debug 日志；要根治需在 catch 里复核
+  `archivedSessionIds` 并重试一次。
 
 ### 依赖的上游内部面（无 API 保证）
 

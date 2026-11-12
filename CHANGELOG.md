@@ -7,6 +7,32 @@
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循
 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [未发布]
+
+### 变更
+
+- 清理 0.1.x 兼容代码：会话行识别不再接受 `onRename` / `onFork` / `onArchive` 三个旧
+  props，兼容表、README 与测试用例一并去掉 0.1.5 / 0.1.7。支持面为 0.2.x
+  （0.2.0-rc.2 起）；0.2.1 / 0.2.2 的 DOM 识别与降级行为不变。
+
+### 修复
+
+- 适配 DSH 0.2.2-rc.2 的菜单行克隆：归档行带 `separatorBefore` 分隔线与权限属性，
+  克隆后会在「移入回收站」上方多出一条分割线，并可能继承 `aria-disabled` /
+  `aria-describedby`（重复 DOM id）。现在克隆后删除分隔线并清掉这两个属性。
+- 确认弹窗按钮 hover 态的边框色 token 拼写改为 `--dsw-alias-label-secondary`（原写
+  `--dsh-`，恒取 fallback 色）。
+
+### 文档
+
+- 新增 `docs/compat-0.2.2-rc.2.md`：rc.2 相对 rc.1 的契约面核查（Host 16 项 / 浏览器 18 项），
+  结论无阻断；记录 `agents.enter()` 所有权语义删除与 `unarchiveSession` 新钩子无 try/catch
+  两个语义变化。
+- `DEVELOPING.md` 兼容表新增 0.2.2-rc.2 列与「0.2.2 起的两个语义变化」小节，并把
+  `docs/compat-0.2.2-rc.1.md` / `rc.2` 补进 compat 文档列表。
+- 在 DSH 0.2.2-rc.2 实机上复验通过：隔离实例里回收站删除/复原逐字节一致、设置与回收站跨重启存活、
+  插件浏览器半被 rc.2 的 client-modules 正常组合下发。结果写入 `docs/compat-0.2.2-rc.2.md`「rc.2 实机证据」。
+
 ## [0.5.8] - 2026-11-06
 
 ### 修复

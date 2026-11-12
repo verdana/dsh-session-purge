@@ -8,9 +8,9 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 
 	// ── optional UI primitives ───────────────────────────────────────────────
 	// `@deepseek-ai/dsh-client-ui-primitives` is a platform seed word: the shell
-	// already holds the one instance, so requiring it adds no dependency. This
-	// plugin also runs against older shells, so every use is guarded and falls
-	// back to the plugin's own styles rather than failing to render.
+	// already holds the one instance, so requiring it adds no dependency. The
+	// package is optional, so every use is guarded and falls back to the plugin's
+	// own styles rather than failing to render.
 	var primitives = null;
 	try {
 		var loadedPrimitives = require("@deepseek-ai/dsh-client-ui-primitives");
@@ -256,7 +256,7 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 		".sd-dlg-err{margin-top:8px;font-size:11px;line-height:1.6;color:var(--dsw-alias-state-error-primary,#ff8080);word-break:break-word}",
 		".sd-dlg-actions{margin-top:14px;display:flex;justify-content:flex-end;gap:8px}",
 		".sd-dlg-btn{height:28px;padding:0 14px;border-radius:8px;border:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.32));background:transparent;color:var(--dsw-alias-label-secondary,#8a93a6);font-size:12px;cursor:pointer;white-space:nowrap}",
-		".sd-dlg-btn:hover{color:var(--dsw-alias-label-primary,#e8ecff);border-color:var(--dsh-alias-label-secondary,#8a93a6)}",
+		".sd-dlg-btn:hover{color:var(--dsw-alias-label-primary,#e8ecff);border-color:var(--dsw-alias-label-secondary,#8a93a6)}",
 		".sd-dlg-btn:disabled{opacity:.55;cursor:default}",
 		".sd-dlg-btn-danger{background:var(--dsw-alias-state-error-primary,#e5484d);border-color:transparent;color:#fff;font-weight:600}",
 		".sd-dlg-btn-danger:hover{color:#fff;filter:brightness(1.08)}",
@@ -696,8 +696,8 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 	 * Open the bin wherever the current placement says it lives.
 	 *
 	 * Menu mode selects the sidebar's own panel; if that registration is missing
-	 * (an older shell, or a slot the user's build does not declare) the select
-	 * throws and the dialog below still works — the entry is never a dead end.
+	 * (a shell that does not declare the slot) the select throws and the dialog
+	 * below still works — the entry is never a dead end.
 	 */
 	function openTrashPanel() {
 		if (entryPlacement() === "menu") {
@@ -1226,12 +1226,11 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 	// pressed (React fiber walk with an aria-label fallback), and a
 	// MutationObserver adds the delete item once the menu portal mounts it.
 	//
-	// Two upstream generations must both work (tools/helpers.test.mjs pins the
+	// The menu shapes this plugin accepts (tools/helpers.test.mjs pins the
 	// captured label sets):
-	//   ≤ 0.1.5  the menu renders exactly 重命名 / 分叉会话 / 归档会话, plain labels
-	//   0.1.7+   it renders 置顶会话 / 重命名 / 分叉会话 / 归档会话, every verb
-	//            carrying a keyboard-shortcut keycap that joins the button's
-	//            textContent, and plugin-registered rows may follow that block.
+	//   the block is 置顶会话 / 重命名 / 分叉会话 / 归档会话, every verb carrying a
+	//   keyboard-shortcut keycap that joins the button's textContent, and
+	//   plugin-registered rows may follow that block.
 	//   0.2.1+   the block gains a trailing 复制 Session ID / Copy Session ID row
 	//            (no keycap); it is an extra row to the ordered-subsequence match,
 	//            so detection and the archive anchor are unaffected.
@@ -1252,11 +1251,10 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 	/**
 	 * Walk up the fiber chain to the SessionNodeItem component fiber, read `node`.
 	 *
-	 * 0.1.5 took the session verbs as props (`onFork`/`onArchive`/`onRename`);
-	 * 0.1.7 replaced them with the `sidebar.workspaces.session.menu.item` slot,
-	 * so no `onFork`/`onArchive` exists any more. The stable signature in both is
-	 * a `node` carrying the SessionNode `{ id, title, running }` triple, which is
-	 * also what the caller needs — so match on that, plus the row-level
+	 * The session verbs live in the `sidebar.workspaces.session.menu.item` slot,
+	 * so the row carries no `onFork`/`onArchive` props. What it does carry is a
+	 * `node` with the SessionNode `{ id, title, running }` triple, which is also
+	 * what the caller needs — so match on that, plus the row-level
 	 * `onOpen`/`onRename*` props that distinguish SessionNodeItem from any other
 	 * component that might receive an object with an `id`.
 	 */
@@ -1269,9 +1267,8 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 				mp.node !== null && typeof mp.node === "object" &&
 				typeof mp.node.id === "string" && typeof mp.node.running === "boolean" &&
 				mp.node.title !== undefined &&
-				(typeof mp.onOpen === "function" || typeof mp.onRename === "function" ||
-					typeof mp.onRenameRequest === "function" ||
-					typeof mp.onFork === "function" || typeof mp.onArchive === "function")) {
+				(typeof mp.onOpen === "function" ||
+					typeof mp.onRenameRequest === "function")) {
 				return mp.node;
 			}
 			f = f.return;
@@ -1349,11 +1346,12 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 	/**
 	 * Read the menu item labels of one `div[role=menu]`.
 	 *
-	 * 0.1.7 renders each action's keyboard shortcut as a separate
+	 * The shell renders each action's keyboard shortcut as a separate
 	 * `aria-hidden="true"` keycap span INSIDE the menuitem button, so
 	 * `button.textContent` yields `"重命名Ctrl+Shift+R"`. Excluding aria-hidden
-	 * subtrees yields the localized verb alone; the version tolerance in
-	 * {@link matchesSequence} covers a generation that drops that marker.
+	 * subtrees yields the localized verb alone; a shell that does not mark the
+	 * keycap aria-hidden still matches through the prefix tolerance in
+	 * {@link matchesSequence}.
 	 * @param menuEl - the candidate `div[role=menu]`.
 	 * @returns one trimmed label per menuitem button, in DOM order.
 	 */
@@ -1377,8 +1375,9 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 
 	/**
 	 * Do these labels carry one built-in verb sequence, in order?
-	 * Extra entries (the 0.1.7 pin row before it, plugin rows after it) are
-	 * allowed; a label may also carry a trailing shortcut keycap.
+	 * Extra entries (the pin row before it, the 0.2.1 Copy Session ID row and
+	 * plugin rows after it) are allowed; a label may also carry a trailing
+	 * shortcut keycap.
 	 * @param labels - labels from {@link menuItemLabels}.
 	 * @returns true when a known sequence appears as an ordered subsequence.
 	 */
@@ -1412,8 +1411,8 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 	/**
 	 * Index of the archive row, whose wrapper the delete entry is cloned from
 	 * and inserted after. Reading the labels (rather than assuming the archive
-	 * row is last) keeps the insert inside the built-in block once 0.1.7 appends
-	 * plugin-registered rows behind it.
+	 * row is last) keeps the insert inside the built-in block even though the
+	 * menu appends plugin-registered rows behind it.
 	 * @param labels - labels from {@link menuItemLabels}.
 	 * @returns the archive row's index, or -1.
 	 */
@@ -1472,7 +1471,7 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 				labelDone = true;
 			}
 		}
-		// Drop the inherited shortcut keycap (0.1.7 renders
+		// Drop the inherited shortcut keycap (the shell renders
 		// `<span aria-hidden="true">` with the archive keys inside the button).
 		// Moving to the bin has no binding of its own, and a `Ctrl+Alt+A` keycap
 		// on this row would advertise the archive shortcut.
@@ -1483,6 +1482,19 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 		for (var c = 0; c < keycaps.length; c++) {
 			if (keycaps[c].querySelector && keycaps[c].querySelector("svg") !== null) continue;
 			keycaps[c].remove();
+		}
+
+		// The archive row declares `separatorBefore: true`, so the clone
+		// can carry a separator that would split this entry off the built-in
+		// block. It also inherits permission gating (aria-disabled /
+		// aria-describedby) from the row it came from; clearing both keeps the
+		// new row actionable and avoids a duplicated id target for AT.
+		var stray = clone.querySelector('[role="separator"]');
+		if (stray !== null) stray.remove();
+		var gated = clone.querySelectorAll("[aria-disabled],[aria-describedby]");
+		for (var g = 0; g < gated.length; g++) {
+			gated[g].removeAttribute("aria-disabled");
+			gated[g].removeAttribute("aria-describedby");
 		}
 
 		btn.removeAttribute("aria-haspopup");
@@ -1509,7 +1521,7 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 				: { id: cap.id, title: cap.title, running: cap.running, cwd: cap.cwd });
 		});
 
-		// Insert immediately after the archive row: 0.1.7 appends
+		// Insert immediately after the archive row: the menu appends
 		// plugin-registered rows (and a separator group) behind the built-in
 		// block, so appending to the viewport would strand the delete entry at
 		// the very bottom instead of next to its sibling verbs.
