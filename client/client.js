@@ -1471,6 +1471,45 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 		return { id: node.id, title: node.title, running: node.running === true, cwd: sessionCwd(node.id) };
 	}
 
+	/**
+	 * Resolve the session a right-click landed on.
+	 *
+	 * The row registers the shell's context-menu trigger, so a right-click opens
+	 * the very same menu without any `click` on the row's ⋯ button — the click
+	 * capture above never runs, and a freshly loaded page has no capture at all.
+	 * The row's fiber still carries the SessionNode, so the same walk works from
+	 * whichever descendant the pointer hit; the row's ⋯ button (aria-label) is
+	 * the fallback when React internals are unavailable.
+	 * @param el - the right-click target.
+	 * @returns the capture, or null when no session could be resolved.
+	 */
+	function captureSessionFromElement(el) {
+		if (el === null || el === undefined || typeof el !== "object") return null;
+		var node = null;
+		try {
+			node = nodeFromFiber(fiberOf(el));
+		} catch (err) { node = null; }
+		if (node !== null) {
+			return { id: node.id, title: node.title, running: node.running === true, cwd: sessionCwd(node.id) };
+		}
+		// The row's own trigger names the session without React internals, but a
+		// wider ancestor (the whole list, say) would resolve its FIRST button —
+		// another row. Only an ancestor holding exactly one such button may
+		// answer, so a miss stays a miss instead of deleting the wrong session.
+		var cur = el;
+		for (var depth = 0; cur !== null && cur !== undefined && depth < 8; depth++) {
+			var buttons = typeof cur.querySelectorAll === "function"
+				? cur.querySelectorAll('button[aria-label]')
+				: null;
+			if (buttons !== null && buttons !== undefined && buttons.length === 1) {
+				var cap = captureSessionFromButton(buttons[0]);
+				if (cap !== null) return cap;
+			}
+			cur = cur.parentElement;
+		}
+		return null;
+	}
+
 	// ── DOM injection into the session-row menu ──────────────────────────────
 
 	/** The built-in session-row verbs, in render order, per locale. */
@@ -1656,6 +1695,10 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 			btn.dataset.sdClaim = "1";
 			closeUpstreamMenu();
 			var cap = pendingCapture.session;
+			// The hint is painted when the menu mounts, which can precede the
+			// right-click capture; re-read it here so it matches the session the
+			// dialog is actually about to remove.
+			btn.title = cap !== null && cap !== undefined && cap.running === true ? tr("row.locked") : "";
 			openTrashDialog(cap === null || cap === undefined
 				? { locateFail: true }
 				: { id: cap.id, title: cap.title, running: cap.running, cwd: cap.cwd });
@@ -1680,6 +1723,24 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 					return; // not a session ⋯ button — keep last capture
 				}
 				pendingCapture.session = captureSessionFromButton(btn);
+			} catch (err) {}
+		}
+
+		/**
+		 * Capture the session before the shell opens the menu for a right-click.
+		 * Runs in the capture phase on document, i.e. before the row's React
+		 * handler, so the delete item injected into that menu already has a
+		 * capture to read. A right-click that resolves nothing (empty sidebar,
+		 * an open menu's own context menu) leaves the previous capture alone,
+		 * which is what the click path does for non-session targets.
+		 */
+		function onContextMenuCapture(e) {
+			try {
+				var el = e.target;
+				if (el === null || el === undefined || typeof el.closest !== "function") return;
+				if (el.closest('[role="menu"]') !== null) return;
+				var cap = captureSessionFromElement(el);
+				if (cap !== null) pendingCapture.session = cap;
 			} catch (err) {}
 		}
 
@@ -1710,12 +1771,20 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 			}
 		}
 
+		// `click` stays on document (that is where the shell's own delegation
+		// sits); the context menu is opened from the row, and window capture runs
+		// ahead of anything document-level, so a shell handler that stops
+		// propagation cannot hide the right-click from this capture.
+		var contextTarget = (typeof window !== "undefined" && window !== null &&
+			typeof window.addEventListener === "function") ? window : document;
 		document.addEventListener("click", onClickCapture, true);
+		contextTarget.addEventListener("contextmenu", onContextMenuCapture, true);
 		var observer = new MutationObserver(onMutate);
 		observer.observe(document.body, { childList: true, subtree: true });
 
 		return function () {
 			document.removeEventListener("click", onClickCapture, true);
+			contextTarget.removeEventListener("contextmenu", onContextMenuCapture, true);
 			observer.disconnect();
 			var leftovers = document.querySelectorAll("[data-sd-menu-item]");
 			for (var i = 0; i < leftovers.length; i++) leftovers[i].remove();
@@ -3217,6 +3286,7 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 		archiveIndex: archiveIndex,
 		nodeFromFiber: nodeFromFiber,
 		fiberOf: fiberOf,
+		captureSessionFromElement: captureSessionFromElement,
 		tr: tr,
 		// Recycle-bin surface: pure helpers are unit-tested; the components are
 		// rendered by the probes.

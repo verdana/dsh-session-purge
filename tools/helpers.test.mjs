@@ -844,6 +844,59 @@ test('the removed session-verb props are not part of the row signature', () => {
     assert.equal(MENU.nodeFromFiber(fiber), null);
 });
 
+/**
+ * A right-click opens the session menu through the row's context-menu trigger,
+ * with no `click` on the ⋯ button — so the click capture never runs and a
+ * freshly loaded page had no session at all, which surfaced as the dialog's
+ * "could not locate this session" state for every row. The contextmenu capture
+ * resolves the row from whatever descendant the pointer hit.
+ */
+test('captureSessionFromElement resolves the row behind a right-click target', () => {
+    const node = { id: 'session-c', title: '问候交流', running: false, pinned: false, archived: false };
+    const rowFiber = { memoizedProps: { node, onOpen: () => {} }, return: null };
+    const titleFiber = { memoizedProps: { className: 'title' }, return: rowFiber };
+    const span = { __reactFiber$t1: titleFiber, parentElement: null };
+    assert.deepEqual(MENU.captureSessionFromElement(span), {
+        id: 'session-c', title: '问候交流', running: false, cwd: '',
+    });
+    // Nothing to resolve: an empty target, a detached node, and a fiber that is
+    // not a SessionNodeItem all leave the previous capture in place.
+    assert.equal(MENU.captureSessionFromElement(null), null);
+    assert.equal(MENU.captureSessionFromElement({}), null);
+    assert.equal(MENU.captureSessionFromElement({ __reactFiber$t2: { memoizedProps: { className: 'x' }, return: null } }), null);
+});
+
+test('captureSessionFromElement falls back to the row own trigger button', () => {
+    const node = { id: 'session-e', title: 'Alpha', running: true };
+    const trigger = {
+        getAttribute: (name) => (name === 'aria-label' ? '会话“Alpha”的操作' : null),
+        __reactFiber$t3: { memoizedProps: { node, onRenameRequest: () => {} }, return: null },
+    };
+    const row = { querySelectorAll: (sel) => (sel === 'button[aria-label]' ? [trigger] : []), parentElement: null };
+    // The pointer hit the title span; the trigger lives on the row above it.
+    assert.deepEqual(MENU.captureSessionFromElement({ parentElement: row }), {
+        id: 'session-e', title: 'Alpha', running: true, cwd: '',
+    });
+});
+
+test('captureSessionFromElement refuses an ancestor holding several rows', () => {
+    const first = { __reactFiber$t4: { memoizedProps: { node: { id: 'session-x', title: 'X', running: false } }, return: null } };
+    const second = { __reactFiber$t5: { memoizedProps: { node: { id: 'session-y', title: 'Y', running: false } }, return: null } };
+    // The list wrapper contains two rows; resolving its first button would
+    // delete the wrong session, so the walk stops instead.
+    const list = { querySelectorAll: (sel) => (sel === 'button[aria-label]' ? [first, second] : []), parentElement: null };
+    assert.equal(MENU.captureSessionFromElement({ parentElement: list }), null);
+});
+
+test('the right-click capture is wired into the document lifecycle', () => {
+    // Registered in the capture phase so it beats the row's React handler,
+    // and removed with the rest of the injection on teardown.
+    assert.match(clientSrc, /contextTarget\.addEventListener\("contextmenu", onContextMenuCapture, true\)/);
+    assert.match(clientSrc, /contextTarget\.removeEventListener\("contextmenu", onContextMenuCapture, true\)/);
+    // A right-click inside an open menu must not overwrite the capture.
+    assert.match(clientSrc, /el\.closest\(\'\[role="menu"\]\'\) !== null/);
+});
+
 test('nodeFromFiber walks up and refuses unrelated fibers', () => {
     const node = { id: 'session-c', title: 'x', running: false };
     const row = { memoizedProps: { node, onOpen: () => {} }, return: null };
