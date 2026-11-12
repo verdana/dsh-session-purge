@@ -439,11 +439,13 @@ check('turning it off locks the schedule controls in the real shell too',
             && rows[3].querySelector('input[type="number"]').disabled === true;
     }));
 
-// Retention through the shell's segmented control.
+// Retention through the row's menu (trigger, then the 90-day option).
+await page.click('.sd-set-row .sd-set-trigger');
+await page.waitForTimeout(250);
 await page.evaluate(() => {
-    const tabs = [...document.querySelectorAll('.sd-set-row [role="tab"]')];
-    const target = tabs.find((tab) => tab.textContent === '90 天');
-    if (target !== undefined) target.click();
+    const option = [...document.querySelectorAll('.sd-set-option')]
+        .find((node) => node.textContent.trim() === '90 天');
+    if (option !== undefined) option.click();
 });
 await page.waitForTimeout(900);
 persisted = await readPersisted();

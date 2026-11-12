@@ -581,6 +581,17 @@ ctx.inject(['slots'], (scope) => {
   避免流式输出时抖动）。
 - **页脚**：`GET /session-purge/settings` 与 `/trash` 都带 `version`（宿主启动时从 `../package.json` 读一次），
   浏览器半从先到者记住；设置页底部渲染 `.sd-set-about`（`border-top` 分隔线 + 「版本 x.y.z」）。
+- **信息层级**（0.6.0 重排）：页面按「标题 → 统计简介 → 设置行」单列直排，行间只用 `.5px` hairline
+  分隔，不再插分组标题（分组标题会把五行拆成三段、反而加重视觉噪音）。设置行 `.sd-set-row` 用
+  `padding:14px 0`，标签 14px/22px primary、说明 12px/18px tertiary；被 `autoClean` 锁定的两行带
+  `data-inactive`，标签降为 secondary。保留时长是一个仿壳层「通用设置」语言下拉的自绘菜单（`.sd-set-trigger` 32px 药丸 +
+  `.sd-set-list` 菜单卡）：五个分段按钮在英文界面下会占掉约 300px、把标签列挤成一条；菜单触发器只占
+  ~77px。菜单卡把半透明的 `--dsw-menu-surface-fill` 叠在不透明的 `--dsw-alias-bg-module-platform` 上
+  （单用半透明填充会让下方开关/输入框透出来），选项 13/20，hover 用
+  `--dsw-alias-interactive-bg-hover`，选中行右侧打勾，触发器焦点环用
+  `--dsw-alias-state-business-primary`（与壳层 focus.css 同色）。
+  「立即清理」这类动作排在 `.sd-set-actions` 里，动作下方的结果/错误文案留 12px 上间距。
+  尺寸与 `dsh-nord` 设置页对齐（`max-width:760px`、H2 18px/600、页脚同款 hairline）。设置项未增删。
 - **更新提示**：设置页挂载后做一次 npm registry 检查（`GET https://registry.npmjs.org/dsh-session-purge/latest`，
   5 s `AbortController` 超时）。只在 `document` 存在时发起，所以无 DOM 的单测不触网；失败/离线/CSP 阻断时
   静默，只留版本行。版本比较是内置的小 semver 解析（`compareVersions`），registry 返回不可解析的值时

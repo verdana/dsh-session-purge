@@ -525,32 +525,32 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 		".sd-bin-page .sd-bin-row-warn,.sd-bin-page .sd-bin-row-err{grid-column:1/-1}",
 		"@container sd-bin (max-width:780px){.sd-bin-page-head{align-items:flex-start;flex-direction:column;gap:12px}.sd-bin-page-head-aside{justify-content:flex-start;padding-bottom:0}.sd-bin-page .sd-bin-row{grid-template-columns:minmax(0,1fr);grid-template-areas:\"title\" \"meta\" \"id\" \"actions\";row-gap:0}.sd-bin-page .sd-bin-row-actions{grid-row:auto;justify-self:start;margin-top:8px}}",
 		// ── settings page ────────────────────────────────────────────────────
-		".sd-set{display:flex;flex-direction:column;gap:14px;max-width:600px;font-size:12px;color:var(--dsw-alias-label-primary,#e8ecff)}",
-		".sd-set-heading{font-size:13px;font-weight:600}",
-		".sd-set-stats{font-size:11px;line-height:1.7;color:var(--dsw-alias-label-secondary,#8a93a6)}",
-		".sd-set-row{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}",
-		".sd-set-row-main{flex:1 1 auto;min-width:0}",
-		".sd-set-label{font-size:12px;line-height:1.5}",
-		".sd-set-hint{margin-top:3px;font-size:11px;line-height:1.6;color:var(--dsw-alias-label-secondary,#8a93a6)}",
-		".sd-set-control{flex:none;display:flex;align-items:center;gap:8px;padding-top:1px}",
+		".sd-set{display:flex;flex-direction:column;gap:0;max-width:760px;font-size:13px;line-height:20px;color:var(--dsw-alias-label-primary,#e8ecff)}",
+		".sd-set-heading{margin:0;font-size:18px;font-weight:600;line-height:26px}",
+		".sd-set-stats{margin:6px 0 0;font-size:13px;line-height:20px;color:var(--dsw-alias-label-tertiary,var(--dsw-alias-label-secondary,#8a93a6))}",
+		".sd-set-row{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:14px 0;border-top:.5px solid var(--dsw-alias-border-l3,var(--dsw-alias-border-l1,rgba(127,127,127,.18)))}",
+		".sd-set-row-main{display:flex;flex-direction:column;gap:2px;flex:1 1 220px;min-width:0}",
+		".sd-set-label{font-size:14px;line-height:22px;color:var(--dsw-alias-label-primary,#e8ecff)}",
+		".sd-set-hint{font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary,var(--dsw-alias-label-secondary,#8a93a6))}",
+		".sd-set-control{flex:none;display:flex;align-items:center;gap:8px;margin-left:auto;padding-top:2px}",
 		".sd-set-segment{display:inline-flex;border:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.32));border-radius:8px;overflow:hidden}",
-		".sd-set-segment-btn{height:26px;padding:0 10px;border:none;background:transparent;color:var(--dsw-alias-label-secondary,#8a93a6);font-size:11px;cursor:pointer;white-space:nowrap}",
+		".sd-set-segment-btn{height:28px;padding:0 12px;border:none;background:transparent;color:var(--dsw-alias-label-secondary,#8a93a6);font-size:12px;cursor:pointer;white-space:nowrap}",
 		".sd-set-segment-btn + .sd-set-segment-btn{border-left:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.18))}",
 		".sd-set-segment-btn[aria-pressed=true]{background:var(--dsw-alias-bg-overlay-2,rgba(127,127,127,.18));color:var(--dsw-alias-label-primary,#e8ecff);font-weight:600}",
 		".sd-set-segment-btn:disabled{opacity:.55;cursor:default}",
-		".sd-set-number{width:76px;height:26px;padding:0 8px;border-radius:8px;border:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.32));background:transparent;color:var(--dsw-alias-label-primary,#e8ecff);font-size:12px}",
+		".sd-set-number{width:76px;height:28px;padding:0 8px;border-radius:8px;border:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.32));background:transparent;color:var(--dsw-alias-label-primary,#e8ecff);font-size:12px}",
 		".sd-set-number:disabled{opacity:.55}",
-		".sd-set-switch{position:relative;width:34px;height:18px;padding:0;border-radius:9px;border:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.32));background:transparent;cursor:pointer}",
-		".sd-set-switch span{position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:var(--dsw-alias-label-secondary,#8a93a6);transition:left .12s ease}",
+		".sd-set-switch{position:relative;width:36px;height:20px;padding:0;border-radius:10px;border:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.32));background:transparent;cursor:pointer}",
+		".sd-set-switch span{position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:var(--dsw-alias-label-secondary,#8a93a6);transition:left .12s ease}",
 		".sd-set-switch[aria-checked=true]{background:var(--dsw-alias-state-success-primary,#22c55e);border-color:transparent}",
-		".sd-set-switch[aria-checked=true] span{left:17px;background:#fff}",
+		".sd-set-switch[aria-checked=true] span{left:18px;background:#fff}",
 		".sd-set-switch:disabled{opacity:.55;cursor:default}",
-		".sd-set-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}",
-		".sd-set-notice{font-size:11px;line-height:1.6;color:var(--dsw-alias-label-secondary,#8a93a6)}",
-		".sd-set-error{font-size:11px;line-height:1.6;color:var(--dsw-alias-state-error-primary,#ff8080)}",
+		".sd-set-actions{margin-top:8px;padding-top:16px;border-top:.5px solid var(--dsw-alias-border-l3,var(--dsw-alias-border-l1,rgba(127,127,127,.18)));display:flex;align-items:center;gap:8px;flex-wrap:wrap}",
+		".sd-set-notice{margin-top:12px;font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary,#8a93a6)}",
+		".sd-set-error{margin-top:12px;font-size:12px;line-height:18px;color:var(--dsw-alias-state-error-primary,#ff8080)}",
 		// The footer closes the page: version (from the host, not this bundle) and
 		// the npm update check, separated from the controls by a rule.
-		".sd-set-about{margin-top:2px;padding-top:12px;border-top:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.18));display:flex;flex-direction:column;gap:4px;font-size:11px;line-height:1.6;color:var(--dsw-alias-label-secondary,#8a93a6)}",
+		".sd-set-about{margin-top:24px;padding-top:12px;border-top:.5px solid var(--dsw-alias-border-l3,var(--dsw-alias-border-l1,rgba(127,127,127,.18)));display:flex;flex-direction:column;gap:4px;font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary,var(--dsw-alias-label-secondary,#8a93a6))}",
 		".sd-set-version{font-variant-numeric:tabular-nums}",
 		".sd-set-link{color:var(--dsw-alias-brand-primary,#4c8dff);text-decoration:none}",
 		".sd-set-link:hover{text-decoration:underline}",
@@ -564,7 +564,28 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 		"[data-sd-settings-nav=\"trash\"]::before{content:\"\";flex:none;width:16px;height:16px;background-color:currentColor;-webkit-mask:" + NAV_ICON_MASK + " center/16px 16px no-repeat;mask:" + NAV_ICON_MASK + " center/16px 16px no-repeat}",
 		".sd-bin-link:hover{text-decoration:underline}",
 		".sd-bin-more{display:block;width:100%;height:26px;margin-top:8px;border-radius:8px;border:1px dashed var(--dsw-alias-border-l2,rgba(127,127,127,.32));background:transparent;color:var(--dsw-alias-label-secondary,#8a93a6);font-size:11px;cursor:pointer}",
-		".sd-bin-more:hover{color:var(--dsw-alias-label-primary,#e8ecff)}"
+		".sd-bin-more:hover{color:var(--dsw-alias-label-primary,#e8ecff)}",
+		// The retention picker mirrors the shell's General-settings dropdown: a
+		// filled pill trigger, and a menu card painted with the menu-surface token
+		// (never the UA's own option list, whose white popup is unreadable in dark).
+		".sd-set-select{position:relative;display:inline-flex;align-items:center}",
+		".sd-set-trigger{display:inline-flex;align-items:center;gap:8px;height:32px;padding:0 12px;border:none;border-radius:var(--dsw-radius-md,12px);background:var(--dsw-alias-bg-module-platform,rgba(127,127,127,.14));color:var(--dsw-alias-label-primary,#e8ecff);font:inherit;font-size:13px;line-height:20px;cursor:pointer}",
+		".sd-set-trigger:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover,rgba(127,127,127,.18))}",
+		".sd-set-trigger[aria-expanded=true]{background:var(--dsw-alias-interactive-bg-hover,rgba(127,127,127,.18))}",
+		".sd-set-trigger:disabled{opacity:.55;cursor:default}",
+		".sd-set-trigger:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary,var(--dsw-alias-brand-primary,#4c8dff));outline-offset:2px}",
+		".sd-set-chevron{flex:none;width:12px;height:12px;color:var(--dsw-alias-label-secondary,#8a93a6)}",
+		// The menu fill token is translucent (the shell blurs what is behind the card),
+		// so it is layered over the module surface: an opaque card keeps the rows below
+		// from ghosting through when the backdrop filter is unavailable.
+		".sd-set-list{position:absolute;top:calc(100% + 4px);right:0;z-index:1100;box-sizing:border-box;display:flex;flex-direction:column;min-width:136px;max-width:min(360px,calc(100vw - 24px));padding:4px;border:0;border-radius:var(--dsw-radius-lg,16px);background-color:var(--dsw-alias-bg-module-platform,#fff);background-image:linear-gradient(var(--dsw-menu-surface-fill,rgba(255,255,255,0)),var(--dsw-menu-surface-fill,rgba(255,255,255,0)));box-shadow:var(--dsw-elevation-prominent,0 8px 24px rgba(0,0,0,.28));-webkit-backdrop-filter:var(--dsw-menu-backdrop-filter,none);backdrop-filter:var(--dsw-menu-backdrop-filter,none)}",
+		".sd-set-option{display:flex;align-items:center;gap:8px;width:100%;min-height:30px;padding:4px 8px;border:none;border-radius:var(--dsw-radius-md,12px);background:transparent;color:var(--dsw-alias-label-primary,#e8ecff);font:inherit;font-size:13px;line-height:20px;text-align:left;cursor:pointer}",
+		".sd-set-option:hover:not(:disabled),.sd-set-option:focus-visible{background:var(--dsw-alias-interactive-bg-hover,rgba(127,127,127,.18));outline:none}",
+		".sd-set-option-label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
+		".sd-set-check{flex:none;width:14px;height:14px;opacity:0;color:var(--dsw-alias-label-primary,#e8ecff)}",
+		".sd-set-option[aria-selected=true] .sd-set-check{opacity:1}",
+		".sd-set-row[data-inactive=true] .sd-set-label{color:var(--dsw-alias-label-secondary,#8a93a6)}",
+		".sd-set-segment-btn:hover:not(:disabled){color:var(--dsw-alias-label-primary,#e8ecff)}"
 	].join("\n");
 
 	function insertStyles() {
@@ -2669,33 +2690,69 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 		}, React.createElement("span", null));
 	}
 
-	/** The retention picker: the segmented primitive when present, else buttons. */
+	/**
+	 * The retention picker: the shell's menu look (filled pill + menu-surface
+	 * card), not a native <select>. A native select draws its option list with
+	 * the OS widget — a white popup with our near-white label colour in dark
+	 * mode, i.e. invisible text — and no CSS reaches inside it. The custom card
+	 * paints with the menu tokens, so it reads correctly in both themes.
+	 */
 	function RetentionControl(props) {
-		var Segmented = primitive("SegmentedControl");
-		if (Segmented !== null) {
-			return React.createElement(Segmented, {
-				id: "session-purge-retention",
-				value: String(props.value),
-				options: retentionOptions(),
-				onChange: function (next) { props.onChange(Number(next)); },
-				label: tr("settings.retention"),
-				disabled: props.disabled === true
-			});
-		}
+		var [open, setOpen] = React.useState(false);
+		var rootRef = React.useRef(null);
+		React.useEffect(function () {
+			if (!open) return undefined;
+			var onPointer = function (event) {
+				if (rootRef.current !== null && !rootRef.current.contains(event.target)) setOpen(false);
+			};
+			var onKey = function (event) { if (event.key === "Escape") setOpen(false); };
+			document.addEventListener("mousedown", onPointer);
+			document.addEventListener("keydown", onKey);
+			return function () {
+				document.removeEventListener("mousedown", onPointer);
+				document.removeEventListener("keydown", onKey);
+			};
+		}, [open]);
 		var options = retentionOptions();
-		return React.createElement("div", {
-			className: "sd-set-segment", role: "group", "aria-label": tr("settings.retention")
-		}, options.map(function (option) {
-			var active = option.value === String(props.value);
-			return React.createElement("button", {
-				key: option.value,
+		var current = String(props.value);
+		return React.createElement("div", { className: "sd-set-select", ref: rootRef },
+			React.createElement("button", {
 				type: "button",
-				className: "sd-set-segment-btn",
-				"aria-pressed": active,
+				className: "sd-set-trigger",
+				"aria-haspopup": "listbox",
+				"aria-expanded": open,
+				"aria-label": tr("settings.retention"),
 				disabled: props.disabled === true,
-				onClick: function () { if (!active) props.onChange(Number(option.value)); }
-			}, option.label);
-		}));
+				onClick: function () { setOpen(!open); }
+			}, React.createElement("span", null, retentionLabel(props.value)),
+			React.createElement("svg", {
+				className: "sd-set-chevron", viewBox: "0 0 12 12", "aria-hidden": "true"
+			}, React.createElement("path", {
+				d: "M2.5 4.25 6 7.75l3.5-3.5", fill: "none", stroke: "currentColor",
+				strokeWidth: "1.4", strokeLinecap: "round", strokeLinejoin: "round"
+			}))),
+			open ? React.createElement("div", {
+				key: "list", className: "sd-set-list", role: "listbox",
+				"aria-label": tr("settings.retention")
+			}, options.map(function (option) {
+				return React.createElement("button", {
+					key: option.value,
+					type: "button",
+					role: "option",
+					className: "sd-set-option",
+					"aria-selected": option.value === current,
+					onClick: function () {
+						setOpen(false);
+						if (option.value !== current) props.onChange(Number(option.value));
+					}
+				}, React.createElement("span", { className: "sd-set-option-label" }, option.label),
+				React.createElement("svg", {
+					className: "sd-set-check", viewBox: "0 0 16 16", "aria-hidden": "true"
+				}, React.createElement("path", {
+					d: "M3.5 8.5 6.5 11.5 12.5 4.5", fill: "none", stroke: "currentColor",
+					strokeWidth: "1.6", strokeLinecap: "round", strokeLinejoin: "round"
+				})));
+			})) : null);
 	}
 
 	/**
@@ -2765,8 +2822,12 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 	}
 
 	/** One settings row: label + hint on the left, the control on the right. */
-	function settingsRow(key, label, hint, control) {
-		return React.createElement("div", { key: key, className: "sd-set-row" }, [
+	function settingsRow(key, label, hint, control, inactive) {
+		return React.createElement("div", {
+			key: key,
+			className: "sd-set-row",
+			"data-inactive": inactive === true ? "true" : undefined
+		}, [
 			React.createElement("div", { key: "main", className: "sd-set-row-main" }, [
 				React.createElement("div", { key: "label", className: "sd-set-label" }, label),
 				hint === null ? null : React.createElement("div", { key: "hint", className: "sd-set-hint" }, hint)
@@ -2794,7 +2855,9 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 		var busy = saving !== null;
 		var autoClean = ready && settings.autoClean === true;
 		var keepForever = ready && !(settings.retentionDays > 0);
-		var children = [];
+		var children = [
+			React.createElement("h2", { key: "heading", className: "sd-set-heading" }, tr("settings.section"))
+		];
 
 		if (state.phase === "loading" || (state.phase === "idle" && !ready)) {
 			children.push(React.createElement("div", { key: "loading", className: "sd-set-stats" }, tr("bin.loading")));
@@ -2841,7 +2904,7 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 					title: autoClean ? undefined : tr("settings.autoCleanHint"),
 					label: tr("settings.sweepOnBoot"),
 					onChange: function (next) { void saveSetting("sweepOnBoot", next); }
-				})));
+				}), !autoClean));
 
 			children.push(settingsRow("interval",
 				tr("settings.sweepInterval"), tr("settings.sweepIntervalHint"),
@@ -2849,7 +2912,7 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 					value: settings.sweepIntervalHours,
 					disabled: busy || !autoClean,
 					onChange: function (next) { void saveSetting("sweepIntervalHours", next); }
-				})));
+				}), !autoClean));
 
 			children.push(settingsRow("placement",
 				tr("settings.entryPlacement"), tr("settings.entryPlacementHint"),
@@ -2909,9 +2972,7 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 			children.push(React.createElement("div", { key: "about", className: "sd-set-about" }, about));
 		}
 
-		return React.createElement("div", { className: "sd-set" }, [
-			React.createElement("div", { key: "heading", className: "sd-set-heading" }, tr("settings.section"))
-		].concat(children));
+		return React.createElement("div", { className: "sd-set" }, children);
 	}
 
 	/**

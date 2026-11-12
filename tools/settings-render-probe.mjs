@@ -141,6 +141,7 @@ const readPage = () => page.evaluate(() => {
     const rows = [...root.querySelectorAll('.sd-set-row')].map((row) => ({
         label: row.querySelector('.sd-set-label')?.textContent ?? '',
         hint: row.querySelector('.sd-set-hint')?.textContent ?? null,
+        inactive: row.getAttribute('data-inactive'),
         switch: row.querySelector('[role="switch"]') === null ? null
             : { checked: row.querySelector('[role="switch"]').getAttribute('aria-checked'), disabled: row.querySelector('[role="switch"]').disabled },
         segments: [...row.querySelectorAll('.sd-set-segment-btn')].map((button) => ({
@@ -148,10 +149,13 @@ const readPage = () => page.evaluate(() => {
         })),
         number: row.querySelector('input[type="number"]') === null ? null
             : { value: row.querySelector('input[type="number"]').value, disabled: row.querySelector('input[type="number"]').disabled },
+        select: row.querySelector('.sd-set-trigger') === null ? null
+            : { value: row.querySelector('.sd-set-trigger').textContent.trim(), expanded: row.querySelector('.sd-set-trigger').getAttribute('aria-expanded') },
     }));
     return {
         heading: root.querySelector('.sd-set-heading')?.textContent ?? '',
         stats: root.querySelector('.sd-set-stats')?.textContent ?? '',
+        groups: [...root.querySelectorAll('.sd-set-group')].map((node) => node.textContent),
         rows,
         buttons: [...root.querySelectorAll('.sd-set-actions button')].map((button) => ({
             text: button.textContent, className: button.className, disabled: button.disabled,
@@ -175,10 +179,49 @@ const report = {
     requests: await page.evaluate(() => window.__requests.slice()),
 };
 
-// 1. the retention picker picks 90 days.
+/**
+ * Read the open retention menu: its rows, the card/row shapes, and the
+ * contrast of the option text against the card as actually painted (the card
+ * fill is translucent, so compositing over the page is part of the check).
+ */
+const snapshotMenu = () => page.evaluate(() => {
+    const list = document.querySelector('.sd-set-list');
+    const options = [...document.querySelectorAll('.sd-set-option')];
+    const parse = (value) => (value.match(/[\d.]+/g) ?? []).map(Number);
+    const over = (fg, bg) => {
+        const alpha = fg.length > 3 ? fg[3] : 1;
+        return [0, 1, 2].map((i) => alpha * fg[i] + (1 - alpha) * bg[i]);
+    };
+    const lum = (rgb) => {
+        const channel = (v) => {
+            const c = v / 255;
+            return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+        };
+        return 0.2126 * channel(rgb[0]) + 0.7152 * channel(rgb[1]) + 0.0722 * channel(rgb[2]);
+    };
+    const pageBg = parse(getComputedStyle(document.body).backgroundColor);
+    const card = over(parse(getComputedStyle(list).backgroundColor), pageBg);
+    const text = over(parse(getComputedStyle(options[0]).color), card);
+    // Contrast is symmetric: the lighter luminance is the numerator.
+    const cardLum = lum(card);
+    const textLum = lum(text);
+    const ratioOf = (a, b) => (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+    return {
+        options: options.map((node) => ({ text: node.textContent.trim(), selected: node.getAttribute('aria-selected') })),
+        listBg: getComputedStyle(list).backgroundColor,
+        listRadius: getComputedStyle(list).borderRadius,
+        optionColor: getComputedStyle(options[0]).color,
+        optionRadius: getComputedStyle(options[0]).borderRadius,
+        contrast: Math.round(ratioOf(textLum, cardLum) * 100) / 100,
+    };
+});
+
+// 1. the retention picker opens its menu, lists the choices, then picks 90 days.
+await page.click('.sd-set-row .sd-set-trigger');
+await page.waitForTimeout(200);
+report.retentionMenu = await snapshotMenu();
 await page.evaluate(() => {
-    const buttons = [...document.querySelectorAll('.sd-set-segment-btn')];
-    buttons.find((button) => button.textContent === '90 天').click();
+    [...document.querySelectorAll('.sd-set-option')].find((node) => node.textContent.trim() === '90 天').click();
 });
 await page.waitForTimeout(500);
 report.afterRetention = await readPage();
@@ -245,6 +288,9 @@ check('no page error while driving the page', pageErrors.length === 0, pageError
 check('the page renders a heading and the stats line',
     report.initial.heading === '回收站' && /共 3 个会话/.test(report.initial.stats) && /2 小时前/.test(report.initial.stats),
     JSON.stringify(report.initial.stats));
+check('no group headings sit between the rows',
+    report.initial.groups.length === 0,
+    JSON.stringify(report.initial.groups));
 check('all five settings rows are present with labels and hints',
     report.initial.rows.length === 5
     && report.initial.rows.map((row) => row.label).join('|') === '自动清理回收站|保留时长|启动时清理一次|清理周期（小时）|入口位置'
@@ -256,10 +302,18 @@ check('the entry-placement picker offers both shapes and marks the stored one',
     JSON.stringify(report.initial.rows[4]));
 check('the fallback controls render with the stored values',
     report.initial.rows[0].switch.checked === 'true'
-    && report.initial.rows[1].segments.map((s) => s.text).join('|') === '7 天|30 天|90 天|365 天|永久'
-    && report.initial.rows[1].segments[1].pressed === 'true'
+    && report.initial.rows[1].select.value === '30 天'
     && report.initial.rows[3].number.value === '6',
     JSON.stringify(report.initial.rows));
+check('the retention menu lists the five choices and marks the stored one',
+    report.retentionMenu.options.map((option) => option.text).join('|') === '7 天|30 天|90 天|365 天|永久'
+    && report.retentionMenu.options[1].selected === 'true'
+    && parseFloat(report.retentionMenu.listRadius) >= 8
+    && parseFloat(report.retentionMenu.optionRadius) >= 6,
+    JSON.stringify(report.retentionMenu));
+check('the open retention menu is readable in light mode',
+    report.retentionMenu.contrast >= 4.5,
+    String(report.retentionMenu.contrast));
 check('both actions are offered',
     report.initial.buttons.map((b) => b.text).join('|') === '立即清理|打开回收站',
     JSON.stringify(report.initial.buttons.map((b) => b.text)));
@@ -267,7 +321,9 @@ check('the footer separates the host version and reports the newer npm release',
     report.initial.version === '版本 0.5.2'
     && report.initial.update === '有新版本 9.9.9 可用'
     && report.initial.updateHref === 'https://www.npmjs.com/package/dsh-session-purge'
-    && report.initial.aboutBorder === '1px',
+    // The rule is a .5px hairline; Chromium snaps border widths to device
+    // pixels, so the used value at DPR 1 is reported as 1px.
+    && parseFloat(report.initial.aboutBorder) > 0 && parseFloat(report.initial.aboutBorder) <= 1,
     JSON.stringify({
         version: report.initial.version, update: report.initial.update,
         href: report.initial.updateHref, border: report.initial.aboutBorder,
@@ -280,12 +336,15 @@ check('the auto-clean switch writes only autoClean and adopts the reply',
     JSON.stringify(allRequests.filter((r) => r.method === 'POST')));
 check('turning auto-clean off locks the schedule controls',
     report.afterAutoClean.rows[2].switch.disabled === true
-    && report.afterAutoClean.rows[3].number.disabled === true,
+    && report.afterAutoClean.rows[3].number.disabled === true
+    && report.afterAutoClean.rows[2].inactive === 'true'
+    && report.afterAutoClean.rows[3].inactive === 'true'
+    && report.afterAutoClean.rows[0].inactive === null,
     JSON.stringify(report.afterAutoClean.rows));
 check('the retention picker writes retentionDays = 90',
     allRequests.some((r) => r.method === 'POST' && r.body !== null && r.body.retentionDays === 90)
-    && report.afterRetention.rows[1].segments[2].pressed === 'true',
-    JSON.stringify(report.afterRetention.rows[1].segments));
+    && report.afterRetention.rows[1].select.value === '90 天',
+    JSON.stringify(report.afterRetention.rows[1].select));
 check('the entry-placement picker writes only entryPlacement and adopts the reply',
     allRequests.some((r) => r.method === 'POST' && r.path === '/session-purge/settings'
         && r.body !== null && r.body.entryPlacement === 'menu' && Object.keys(r.body).length === 1)
@@ -313,6 +372,20 @@ await page.waitForTimeout(300);
 const dark = await readPage();
 check('the page renders under the dark palette', dark !== null && dark.headingColor !== report.initial.headingColor,
     `${dark?.headingColor} vs ${report.initial.headingColor}`);
+
+// The retention menu must be readable in dark mode too: its card is painted by
+// our tokens, not by the browser's option list (which is what made this fail).
+// The bin panel opened earlier and its mask covers the page, so open the menu
+// through the DOM rather than by pointer.
+await page.evaluate(() => document.querySelector('.sd-set-row .sd-set-trigger').click());
+await page.waitForTimeout(250);
+const darkMenu = await snapshotMenu();
+await page.keyboard.press('Escape');
+await page.waitForTimeout(200);
+check('the open retention menu is readable in dark mode', darkMenu.contrast >= 4.5,
+    JSON.stringify({ contrast: darkMenu.contrast, bg: darkMenu.listBg, color: darkMenu.optionColor }));
+check('Escape closes the retention menu',
+    await page.evaluate(() => document.querySelector('.sd-set-list') === null));
 
 console.log(JSON.stringify(report, null, 2));
 await browser.close();
