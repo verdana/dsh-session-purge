@@ -33,6 +33,9 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 		zh: {
 			"menu.trashSession": "移入回收站",
 			"dialog.cwd": "目录：{cwd}",
+			"dialog.cwdLabel": "目录",
+			"dialog.trash.subject": "会话",
+			"dialog.trash.reversible": "移入后可在回收站中随时恢复",
 			"dialog.trash.title": "移入回收站",
 			"dialog.trash.target": "将把「{name}」移入回收站，可随时复原。",
 			"dialog.trash.policy": "回收站自动清理：保留 {days} 天",
@@ -130,6 +133,9 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 		en: {
 			"menu.trashSession": "Move to recycle bin",
 			"dialog.cwd": "Folder: {cwd}",
+			"dialog.cwdLabel": "Folder",
+			"dialog.trash.subject": "Session",
+			"dialog.trash.reversible": "You can restore it anytime from the recycle bin.",
 			"dialog.trash.title": "Move to recycle bin",
 			"dialog.trash.target": "“{name}” will be moved to the recycle bin. You can restore it later.",
 			"dialog.trash.policy": "Auto-clean: keep for {days} days",
@@ -245,16 +251,43 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 	var CSS = [
 		".sd-icon{display:inline-flex;align-items:center;flex:none}",
 		".sd-dlg-host{position:fixed;inset:0;z-index:2200;pointer-events:none}",
-		".sd-dlg-backdrop{position:fixed;inset:0;z-index:2200;background:rgba(0,0,0,.32);pointer-events:auto}",
-		".sd-dlg{position:fixed;z-index:2201;left:50%;top:50%;transform:translate(-50%,-50%);width:340px;max-width:calc(100vw - 32px);background:var(--dsw-alias-bg-overlay,#1c2030);border:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.22));border-radius:12px;box-shadow:0 12px 32px rgba(0,0,0,.35);padding:16px;pointer-events:auto}",
-		".sd-dlg-title{font-size:13px;font-weight:600;color:var(--dsw-alias-label-primary,#e8ecff);display:flex;align-items:center;gap:8px}",
+		"@keyframes sd-dlg-fade{from{opacity:0}to{opacity:1}}",
+		"@keyframes sd-dlg-in{from{opacity:0;transform:translate(-50%,-48%) scale(.985)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}",
+		".sd-dlg-backdrop{position:fixed;inset:0;z-index:2200;background:rgba(8,10,16,.46);pointer-events:auto;animation:sd-dlg-fade .18s ease-out both}",
+		".sd-dlg{position:fixed;z-index:2201;left:50%;top:50%;transform:translate(-50%,-50%);width:404px;max-width:calc(100vw - 40px);max-height:calc(100vh - 40px);overflow:auto;background:var(--dsw-alias-bg-overlay,#1c2030);border:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.22));border-radius:16px;box-shadow:0 24px 64px rgba(0,0,0,.28),0 2px 8px rgba(0,0,0,.12);padding:0;pointer-events:auto;animation:sd-dlg-in .18s cubic-bezier(.2,.8,.2,1) both;--sd-dlg-secondary:var(--dsw-alias-label-secondary,#8a93a6);--sd-dlg-secondary:color-mix(in srgb,var(--dsw-alias-label-secondary,#8a93a6) 50%,var(--dsw-alias-label-primary,#e8ecff))}",
+		".sd-dlg-head{display:flex;align-items:flex-start;gap:12px;padding:20px 20px 0}",
+		".sd-dlg-mark{display:flex;align-items:center;justify-content:center;width:34px;height:34px;flex:none;border-radius:10px;color:var(--dsw-alias-label-primary,#e8ecff);background:rgba(229,160,0,.12);border:1px solid rgba(229,160,0,.20)}",
+		".sd-dlg-mark .sd-icon{color:inherit}",
+		".sd-dlg-heading{min-width:0;padding-top:1px}",
+		".sd-dlg-title{margin:0;font-size:16px;font-weight:600;line-height:1.3;letter-spacing:-.01em;color:var(--dsw-alias-label-primary,#e8ecff);display:flex;align-items:center;gap:0}",
 		".sd-dlg-title .sd-icon{color:var(--dsw-alias-state-warn-primary,#e5a000)}",
-		".sd-dlg-text{margin-top:10px;font-size:12px;line-height:1.65;color:var(--dsw-alias-label-primary,#e8ecff);word-break:break-word}",
-		".sd-dlg-cwd{margin-top:6px;font-size:11px;color:var(--dsw-alias-label-secondary,#8a93a6);word-break:break-all}",
-		".sd-dlg-note{margin-top:8px;font-size:11px;line-height:1.6;color:var(--dsw-alias-label-secondary,#8a93a6)}",
-		".sd-dlg-note-warn{color:var(--dsw-alias-state-warn-primary,#e5a000)}",
-		".sd-dlg-err{margin-top:8px;font-size:11px;line-height:1.6;color:var(--dsw-alias-state-error-primary,#ff8080);word-break:break-word}",
-		".sd-dlg-actions{margin-top:14px;display:flex;justify-content:flex-end;gap:8px}",
+		".sd-dlg-subtitle{margin-top:3px;font-size:11.5px;line-height:1.45;color:var(--sd-dlg-secondary,#8a93a6)}",
+		".sd-dlg-body{padding:16px 20px 0}",
+		".sd-dlg-panel{border:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.18));background:rgba(127,127,127,.065);border-radius:12px;padding:12px 14px}",
+		".sd-dlg-overline{font-size:10.5px;font-weight:600;line-height:1.4;letter-spacing:.08em;text-transform:uppercase;color:var(--sd-dlg-secondary,#8a93a6)}",
+		".sd-dlg-subject-name{margin-top:4px;font-size:14px;font-weight:600;line-height:1.4;color:var(--dsw-alias-label-primary,#e8ecff);overflow-wrap:anywhere}",
+		".sd-dlg-meta{margin:10px 0 0;padding:10px 0 0;border-top:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.16));display:grid;gap:7px}",
+		".sd-dlg-row{display:grid;grid-template-columns:76px minmax(0,1fr);align-items:baseline;gap:12px}",
+		".sd-dlg-label{margin:0;font-size:10.5px;font-weight:600;line-height:1.6;letter-spacing:.06em;text-transform:uppercase;color:var(--sd-dlg-secondary,#8a93a6)}",
+		".sd-dlg-value{margin:0;min-width:0;font-size:12.5px;font-weight:500;line-height:1.55;color:var(--dsw-alias-label-primary,#e8ecff);overflow-wrap:anywhere}",
+		".sd-dlg-path{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11.5px;font-weight:500;line-height:1.55;letter-spacing:-.01em;word-break:break-all}",
+		".sd-dlg-badge{display:inline-flex;align-items:center;gap:6px;padding:2px 8px;border-radius:999px;background:rgba(229,160,0,.14);border:1px solid rgba(229,160,0,.24);color:var(--dsw-alias-label-primary,#e8ecff);font-size:11.5px;font-weight:600;line-height:1.55;white-space:nowrap}",
+		".sd-dlg-badge-dot{width:5px;height:5px;border-radius:50%;background:var(--dsw-alias-state-warn-primary,#e5a000);flex:none}",
+		".sd-dlg-badge-muted{background:rgba(127,127,127,.10);border-color:var(--dsw-alias-border-l1,rgba(127,127,127,.2));color:var(--sd-dlg-secondary,#8a93a6)}",
+		".sd-dlg-text{margin:0;padding:10px 12px;border:1px solid rgba(229,160,0,.24);background:rgba(229,160,0,.08);border-radius:10px;font-size:12px;line-height:1.6;color:var(--dsw-alias-label-primary,#e8ecff);word-break:break-word}",
+		".sd-dlg-note{margin-top:10px;padding:8px 10px;border:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.18));background:rgba(127,127,127,.06);border-radius:10px;font-size:11.5px;line-height:1.55;color:var(--sd-dlg-secondary,#8a93a6)}",
+		".sd-dlg-note-warn{border-color:rgba(229,160,0,.24);background:rgba(229,160,0,.09);color:var(--dsw-alias-label-primary,#e8ecff)}",
+		".sd-dlg-err{margin-top:10px;padding:8px 10px;border:1px solid rgba(229,72,77,.26);background:rgba(229,72,77,.09);border-radius:10px;font-size:11.5px;line-height:1.55;color:var(--dsw-alias-state-error-primary,#ff8080);word-break:break-word}",
+		".sd-dlg-actions{margin-top:18px;display:flex;justify-content:flex-end;gap:8px;padding:14px 20px 16px;border-top:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.16))}",
+		".sd-dlg .sd-dlg-btn{height:32px;padding:0 14px;border-radius:9px;border:1px solid transparent;background:transparent;color:var(--sd-dlg-secondary,#8a93a6);font-size:12.5px;font-weight:500;cursor:pointer;white-space:nowrap}",
+		".sd-dlg .sd-dlg-btn:hover{background:rgba(127,127,127,.08);color:var(--dsw-alias-label-primary,#e8ecff);border-color:transparent}",
+		".sd-dlg .sd-dlg-btn:focus-visible{outline:2px solid var(--dsw-alias-label-primary,#e8ecff);outline-offset:2px}",
+		".sd-dlg .sd-dlg-btn:disabled{opacity:.5;cursor:default}",
+		".sd-dlg .sd-dlg-btn-primary{background:var(--dsw-alias-label-primary,#e8ecff);color:var(--dsw-alias-bg-overlay,#1c2030);font-weight:600;padding:0 16px}",
+		".sd-dlg .sd-dlg-btn-primary:hover{background:var(--dsw-alias-label-primary,#e8ecff);color:var(--dsw-alias-bg-overlay,#1c2030);filter:brightness(1.04)}",
+		".sd-dlg .sd-dlg-btn-warn{background:var(--dsw-alias-state-warn-primary,#e5a000);border-color:transparent;color:#1b1b1b;font-weight:600}",
+		".sd-dlg .sd-dlg-btn-warn:hover{background:var(--dsw-alias-state-warn-primary,#e5a000);color:#1b1b1b;filter:brightness(1.06)}",
+		"@media (prefers-reduced-motion:reduce){.sd-dlg,.sd-dlg-backdrop{animation:none}}",
 		".sd-dlg-btn{height:28px;padding:0 14px;border-radius:8px;border:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.32));background:transparent;color:var(--dsw-alias-label-secondary,#8a93a6);font-size:12px;cursor:pointer;white-space:nowrap}",
 		".sd-dlg-btn:hover{color:var(--dsw-alias-label-primary,#e8ecff);border-color:var(--dsw-alias-label-secondary,#8a93a6)}",
 		".sd-dlg-btn:disabled{opacity:.55;cursor:default}",
@@ -2722,6 +2755,16 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 	}
 
 	/**
+	 * Split "Auto-clean: keep 30 days" into the quiet label and the answer.
+	 * Returns null when the copy has no separator, so the caller can fall back
+	 * to rendering the whole line instead of hiding it.
+	 */
+	function splitPolicyText(text) {
+		var match = /^([^：:]{1,24})[：:]\s*(.+)$/u.exec(typeof text === "string" ? text : "");
+		return match === null ? null : { label: match[1], value: match[2] };
+	}
+
+	/**
 	 * Two-step confirmation shown when the menu's move-to-bin item is chosen.
 	 *
 	 * The action is reversible, so the confirming button is neutral (not danger
@@ -2788,21 +2831,53 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 		}
 
 		var name = target.title || target.id;
+		// "Auto-clean: keep 30 days" is two levels of information. Split it so
+		// the label can stay quiet and the answer can carry the emphasis.
+		var policyParts = policy !== null && !queued ? splitPolicyText(policy) : null;
+		var policyOff = policy !== null && policy === tr("bin.policyOff");
 		var body = [];
 		if (locateFail) {
 			body.push(React.createElement("div", { key: "t", className: "sd-dlg-text" }, tr("dialog.locateFail")));
 		} else {
-			body.push(React.createElement("div", { key: "t", className: "sd-dlg-text" }, tr("dialog.trash.target", { name: name })));
+			var rows = [];
 			if (target.cwd) {
-				body.push(React.createElement("div", { key: "c", className: "sd-dlg-cwd" }, tr("dialog.cwd", { cwd: baseName(target.cwd) || target.cwd })));
+				rows.push(React.createElement("div", { key: "cwd", className: "sd-dlg-row" }, [
+					React.createElement("dt", { key: "l", className: "sd-dlg-label" }, tr("dialog.cwdLabel")),
+					React.createElement("dd", {
+						key: "v", className: "sd-dlg-value sd-dlg-path", title: target.cwd
+					}, target.cwd)
+				]));
+			}
+			if (policyParts !== null) {
+				var badgeChildren = [];
+				if (!policyOff) {
+					badgeChildren.push(React.createElement("span", {
+						key: "dot", className: "sd-dlg-badge-dot", "aria-hidden": "true"
+					}));
+				}
+				badgeChildren.push(React.createElement("span", { key: "v" }, policyParts.value));
+				rows.push(React.createElement("div", { key: "policy", className: "sd-dlg-row" }, [
+					React.createElement("dt", { key: "l", className: "sd-dlg-label" }, policyParts.label),
+					React.createElement("dd", { key: "v", className: "sd-dlg-value" },
+						React.createElement("span", {
+							className: policyOff ? "sd-dlg-badge sd-dlg-badge-muted" : "sd-dlg-badge"
+						}, badgeChildren))
+				]));
+			}
+			body.push(React.createElement("div", { key: "p", className: "sd-dlg-panel" }, [
+				React.createElement("div", { key: "s", className: "sd-dlg-subject" }, [
+					React.createElement("div", { key: "o", className: "sd-dlg-overline" }, tr("dialog.trash.subject")),
+					React.createElement("div", { key: "n", className: "sd-dlg-subject-name" }, name)
+				]),
+				rows.length > 0 ? React.createElement("dl", { key: "m", className: "sd-dlg-meta" }, rows) : null
+			]));
+			// A policy string without a separator still has to be visible; keep
+			// the old whole-line fallback instead of dropping information.
+			if (policy !== null && !queued && policyParts === null) {
+				body.push(React.createElement("div", { key: "p2", className: "sd-dlg-note" }, policy));
 			}
 			if (running) {
 				body.push(React.createElement("div", { key: "r", className: "sd-dlg-note sd-dlg-note-warn" }, tr("row.locked")));
-			}
-			// The retention policy is the answer to "how long do I have?"; it is
-			// omitted entirely while the host's settings are still unknown.
-			if (policy !== null && !queued) {
-				body.push(React.createElement("div", { key: "p", className: "sd-dlg-note" }, policy));
 			}
 			if (queued) {
 				body.push(React.createElement("div", { key: "q", className: "sd-dlg-note" }, tr("dialog.trash.queued")));
@@ -2816,11 +2891,12 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 		if (queued || locateFail) {
 			actions.push(React.createElement("button", {
 				key: "ok", type: "button", className: "sd-dlg-btn sd-dlg-btn-warn",
-				onClick: onClose
+				onClick: onClose, autoFocus: true
 			}, tr("bin.close")));
 		} else {
 			actions.push(React.createElement("button", {
-				key: "no", type: "button", className: "sd-dlg-btn", onClick: onClose, disabled: busy
+				key: "no", type: "button", className: "sd-dlg-btn", onClick: onClose, disabled: busy,
+				autoFocus: true
 			}, tr("row.cancel")));
 			actions.push(React.createElement("button", {
 				key: "yes", type: "button", className: "sd-dlg-btn sd-dlg-btn-primary",
@@ -2834,16 +2910,22 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 				key: "d",
 				className: "sd-dlg",
 				role: "alertdialog",
+				"aria-modal": "true",
 				"aria-label": tr("dialog.trash.title")
 			}, [
-				React.createElement("div", { key: "t", className: "sd-dlg-title" }, [
-					React.createElement("span", {
-						key: "i", className: "sd-icon",
-						dangerouslySetInnerHTML: { __html: ICON }
-					}),
-					React.createElement("span", { key: "l" }, tr("dialog.trash.title"))
+				React.createElement("div", { key: "h", className: "sd-dlg-head" }, [
+					React.createElement("span", { key: "i", className: "sd-dlg-mark" },
+						React.createElement("span", {
+							key: "g", className: "sd-icon",
+							dangerouslySetInnerHTML: { __html: ICON }
+						})),
+					React.createElement("div", { key: "x", className: "sd-dlg-heading" }, [
+						React.createElement("h2", { key: "t", className: "sd-dlg-title" },
+							React.createElement("span", { key: "l" }, tr("dialog.trash.title"))),
+						locateFail ? null : React.createElement("div", { key: "s", className: "sd-dlg-subtitle" }, tr("dialog.trash.reversible"))
+					])
 				]),
-				body,
+				React.createElement("div", { key: "b", className: "sd-dlg-body" }, body),
 				React.createElement("div", { key: "a", className: "sd-dlg-actions" }, actions)
 			])
 		]);

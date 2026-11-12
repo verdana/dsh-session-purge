@@ -46,7 +46,7 @@ const readDialogs = () => page.evaluate(() => {
         menuItems: document.querySelectorAll('[data-sd-menu-item]').length,
         texts: dialogs.map((d) => {
             const title = d.querySelector('.sd-dlg-title')?.textContent ?? '';
-            const body = [...d.querySelectorAll('.sd-dlg-text,.sd-dlg-cwd,.sd-dlg-note,.sd-dlg-err')]
+            const body = [...d.querySelectorAll('.sd-dlg-text,.sd-dlg-subject-name,.sd-dlg-value,.sd-dlg-note,.sd-dlg-err')]
                 .map((n) => n.textContent);
             const buttons = [...d.querySelectorAll('button')].map((b) => b.textContent);
             const rect = d.getBoundingClientRect();

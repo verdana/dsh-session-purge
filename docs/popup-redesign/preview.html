@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>移入回收站 · 弹窗层级预览</title>
+<style>
+:root {
+  color-scheme: light;
+  --dsw-alias-bg-overlay: #e9ecf2;
+  --dsw-alias-bg-overlay-2: rgba(0, 0, 0, .06);
+  --dsw-alias-border-l1: rgba(0, 0, 0, .04);
+  --dsw-alias-border-l2: rgba(0, 0, 0, .10);
+  --dsw-alias-label-primary: #0f1115;
+  --dsw-alias-label-secondary: #61666b;
+  --dsw-alias-state-warn-primary: #f59e0b;
+  --dsw-alias-state-error-primary: #ec1313;
+  --dsw-alias-state-success-primary: #22c55e;
+}
+[data-theme="dark"] {
+  color-scheme: dark;
+  --dsw-alias-bg-overlay: #61666b;
+  --dsw-alias-bg-overlay-2: rgba(255, 255, 255, .12);
+  --dsw-alias-border-l1: rgba(255, 255, 255, .06);
+  --dsw-alias-border-l2: rgba(255, 255, 255, .12);
+  --dsw-alias-label-primary: #f9fafb;
+  --dsw-alias-label-secondary: #cfd3d6;
+  --dsw-alias-state-warn-primary: #f59e0b;
+  --dsw-alias-state-error-primary: #f25a5a;
+  --dsw-alias-state-success-primary: #22c55e;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  padding: 54px 32px 72px;
+  background: #f4f6f9;
+  color: #0f1115;
+  font-family: "Plus Jakarta Sans", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+.page { max-width: 1080px; margin: 0 auto; }
+.eyebrow { margin: 0 0 10px; font-size: 11px; font-weight: 700; letter-spacing: .14em; color: #61666b; text-transform: uppercase; }
+h1 { margin: 0; font-size: 30px; line-height: 1.25; letter-spacing: -.02em; font-weight: 700; }
+.lede { max-width: 720px; margin: 12px 0 0; font-size: 14px; line-height: 1.75; color: #4b5563; }
+.rule { display: flex; gap: 10px 22px; flex-wrap: wrap; margin: 26px 0 34px; padding: 14px 0; border-top: 1px solid #dfe4ec; border-bottom: 1px solid #dfe4ec; color: #61666b; font-size: 12px; }
+.rule b { color: #0f1115; font-weight: 600; }
+.grid { display: flex; flex-wrap: wrap; gap: 34px 36px; justify-content: center; align-items: flex-start; }
+.preview { margin: 0; width: 460px; }
+.preview h2 { display: flex; align-items: baseline; gap: 9px; margin: 0 0 10px 2px; font-size: 13px; font-weight: 600; color: #30343b; }
+.preview h2 span { font-size: 10px; font-weight: 700; letter-spacing: .12em; color: #8a929e; }
+.stage {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 460px;
+  min-height: 430px;
+  padding: 24px;
+  border-radius: 18px;
+  border: 1px solid rgba(15, 17, 21, .08);
+  background: #f7f8fa;
+}
+.stage.dark { border-color: rgba(255, 255, 255, .08); background: #24262b; }
+.stage .sd-dlg-backdrop { position: absolute; inset: 0; z-index: 0; border-radius: 17px; animation: none; }
+.stage .sd-dlg {
+  position: relative;
+  left: auto;
+  top: auto;
+  z-index: 1;
+  transform: none;
+  margin: 0;
+  max-height: none;
+  animation: none;
+}
+footer { max-width: 760px; margin: 40px auto 0; color: #7a828e; font-size: 11.5px; line-height: 1.7; text-align: center; }
+@media (max-width: 1020px) { .stage, .preview { width: 100%; max-width: 460px; } }
+</style>
+<style>
+.sd-icon{display:inline-flex;align-items:center;flex:none}
+@keyframes sd-dlg-fade{from{opacity:0}to{opacity:1}}
+@keyframes sd-dlg-in{from{opacity:0;transform:translate(-50%,-48%) scale(.985)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+.sd-dlg-backdrop{position:fixed;inset:0;z-index:2200;background:rgba(8,10,16,.46);pointer-events:auto;animation:sd-dlg-fade .18s ease-out both}
+.sd-dlg{position:fixed;z-index:2201;left:50%;top:50%;transform:translate(-50%,-50%);width:404px;max-width:calc(100vw - 40px);max-height:calc(100vh - 40px);overflow:auto;background:var(--dsw-alias-bg-overlay,#1c2030);border:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.22));border-radius:16px;box-shadow:0 24px 64px rgba(0,0,0,.28),0 2px 8px rgba(0,0,0,.12);padding:0;pointer-events:auto;animation:sd-dlg-in .18s cubic-bezier(.2,.8,.2,1) both;--sd-dlg-secondary:var(--dsw-alias-label-secondary,#8a93a6);--sd-dlg-secondary:color-mix(in srgb,var(--dsw-alias-label-secondary,#8a93a6) 50%,var(--dsw-alias-label-primary,#e8ecff))}
+.sd-dlg-head{display:flex;align-items:flex-start;gap:12px;padding:20px 20px 0}
+.sd-dlg-mark{display:flex;align-items:center;justify-content:center;width:34px;height:34px;flex:none;border-radius:10px;color:var(--dsw-alias-label-primary,#e8ecff);background:rgba(229,160,0,.12);border:1px solid rgba(229,160,0,.20)}
+.sd-dlg-mark .sd-icon{color:inherit}
+.sd-dlg-heading{min-width:0;padding-top:1px}
+.sd-dlg-title{margin:0;font-size:16px;font-weight:600;line-height:1.3;letter-spacing:-.01em;color:var(--dsw-alias-label-primary,#e8ecff);display:flex;align-items:center;gap:0}
+.sd-dlg-subtitle{margin-top:3px;font-size:11.5px;line-height:1.45;color:var(--sd-dlg-secondary,#8a93a6)}
+.sd-dlg-body{padding:16px 20px 0}
+.sd-dlg-panel{border:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.18));background:rgba(127,127,127,.065);border-radius:12px;padding:12px 14px}
+.sd-dlg-overline{font-size:10.5px;font-weight:600;line-height:1.4;letter-spacing:.08em;text-transform:uppercase;color:var(--sd-dlg-secondary,#8a93a6)}
+.sd-dlg-subject-name{margin-top:4px;font-size:14px;font-weight:600;line-height:1.4;color:var(--dsw-alias-label-primary,#e8ecff);overflow-wrap:anywhere}
+.sd-dlg-meta{margin:10px 0 0;padding:10px 0 0;border-top:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.16));display:grid;gap:7px}
+.sd-dlg-row{display:grid;grid-template-columns:76px minmax(0,1fr);align-items:baseline;gap:12px}
+.sd-dlg-label{margin:0;font-size:10.5px;font-weight:600;line-height:1.6;letter-spacing:.06em;text-transform:uppercase;color:var(--sd-dlg-secondary,#8a93a6)}
+.sd-dlg-value{margin:0;min-width:0;font-size:12.5px;font-weight:500;line-height:1.55;color:var(--dsw-alias-label-primary,#e8ecff);overflow-wrap:anywhere}
+.sd-dlg-path{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11.5px;font-weight:500;line-height:1.55;letter-spacing:-.01em;word-break:break-all}
+.sd-dlg-badge{display:inline-flex;align-items:center;gap:6px;padding:2px 8px;border-radius:999px;background:rgba(229,160,0,.14);border:1px solid rgba(229,160,0,.24);color:var(--dsw-alias-label-primary,#e8ecff);font-size:11.5px;font-weight:600;line-height:1.55;white-space:nowrap}
+.sd-dlg-badge-dot{width:5px;height:5px;border-radius:50%;background:var(--dsw-alias-state-warn-primary,#e5a000);flex:none}
+.sd-dlg-badge-muted{background:rgba(127,127,127,.10);border-color:var(--dsw-alias-border-l1,rgba(127,127,127,.2));color:var(--sd-dlg-secondary,#8a93a6)}
+.sd-dlg-text{margin:0;padding:10px 12px;border:1px solid rgba(229,160,0,.24);background:rgba(229,160,0,.08);border-radius:10px;font-size:12px;line-height:1.6;color:var(--dsw-alias-label-primary,#e8ecff);word-break:break-word}
+.sd-dlg-note{margin-top:10px;padding:8px 10px;border:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.18));background:rgba(127,127,127,.06);border-radius:10px;font-size:11.5px;line-height:1.55;color:var(--sd-dlg-secondary,#8a93a6)}
+.sd-dlg-note-warn{border-color:rgba(229,160,0,.24);background:rgba(229,160,0,.09);color:var(--dsw-alias-label-primary,#e8ecff)}
+.sd-dlg-err{margin-top:10px;padding:8px 10px;border:1px solid rgba(229,72,77,.26);background:rgba(229,72,77,.09);border-radius:10px;font-size:11.5px;line-height:1.55;color:var(--dsw-alias-state-error-primary,#ff8080);word-break:break-word}
+.sd-dlg-actions{margin-top:18px;display:flex;justify-content:flex-end;gap:8px;padding:14px 20px 16px;border-top:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.16))}
+.sd-dlg .sd-dlg-btn{height:32px;padding:0 14px;border-radius:9px;border:1px solid transparent;background:transparent;color:var(--sd-dlg-secondary,#8a93a6);font-size:12.5px;font-weight:500;cursor:pointer;white-space:nowrap}
+.sd-dlg .sd-dlg-btn:hover{background:rgba(127,127,127,.08);color:var(--dsw-alias-label-primary,#e8ecff);border-color:transparent}
+.sd-dlg .sd-dlg-btn:focus-visible{outline:2px solid var(--dsw-alias-label-primary,#e8ecff);outline-offset:2px}
+.sd-dlg .sd-dlg-btn:disabled{opacity:.5;cursor:default}
+.sd-dlg .sd-dlg-btn-primary{background:var(--dsw-alias-label-primary,#e8ecff);color:var(--dsw-alias-bg-overlay,#1c2030);font-weight:600;padding:0 16px}
+.sd-dlg .sd-dlg-btn-primary:hover{background:var(--dsw-alias-label-primary,#e8ecff);color:var(--dsw-alias-bg-overlay,#1c2030);filter:brightness(1.04)}
+.sd-dlg .sd-dlg-btn-warn{background:var(--dsw-alias-state-warn-primary,#e5a000);border-color:transparent;color:#1b1b1b;font-weight:600}
+.sd-dlg .sd-dlg-btn-warn:hover{background:var(--dsw-alias-state-warn-primary,#e5a000);color:#1b1b1b;filter:brightness(1.06)}
+.sd-dlg-btn{height:28px;padding:0 14px;border-radius:8px;border:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.32));background:transparent;color:var(--sd-dlg-secondary,#8a93a6);font-size:12px;cursor:pointer;white-space:nowrap}
+.sd-dlg-btn:hover{color:var(--dsw-alias-label-primary,#e8ecff);border-color:var(--sd-dlg-secondary,#8a93a6)}
+.sd-dlg-btn:disabled{opacity:.55;cursor:default}
+@media (prefers-reduced-motion:reduce){.sd-dlg,.sd-dlg-backdrop{animation:none}}
+</style>
+</head>
+<body>
+<main class="page">
+  <p class="eyebrow">DSH · session purge</p>
+  <h1>把“移入回收站”做成一张有层次的卡片</h1>
+  <p class="lede">标题说明发生什么，会话名说明对谁，属性行说明在哪、保留多久；琥珀色只留给需要被看见的状态。桌面宽度 404px，主题令牌沿用 DSH。</p>
+  <div class="rule"><span><b>标题</b> 16 / 600</span><span><b>Label</b> 10.5 / 600 · uppercase</span><span><b>值</b> 12.5 / 500</span><span><b>路径</b> mono 11.5</span><span><b>强调</b> 仅保留期与终态</span></div>
+  <div class="grid">
+
+    <figure class="preview">
+      <h2><span>DEFAULT</span>默认 · 浅色</h2>
+      <div class="stage light">
+        <div class="sd-dlg-backdrop"></div>
+        <div class="sd-dlg" role="alertdialog" aria-modal="true" aria-label="移入回收站">
+          <div class="sd-dlg-head">
+            <span class="sd-dlg-mark"><span class="sd-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4.2h11"/><path d="M6.4 4.2V3c0-.44.36-.8.8-.8h1.6c.44 0 .8.36.8.8v1.2"/><path d="M4 4.2l.55 8.9c.03.5.45.9.96.9h4.98c.5 0 .93-.4.96-.9L12 4.2"/><path d="M6.6 7v4.4M9.4 7v4.4"/></svg></span></span>
+            <div class="sd-dlg-heading">
+              <h2 class="sd-dlg-title"><span>移入回收站</span></h2>
+              <div class="sd-dlg-subtitle">移入后可在回收站中随时恢复</div>
+            </div>
+          </div>
+          <div class="sd-dlg-body">
+            <div class="sd-dlg-panel">
+              <div class="sd-dlg-subject">
+                <div class="sd-dlg-overline">会话</div>
+                <div class="sd-dlg-subject-name">会话清理策略</div>
+              </div>
+              <dl class="sd-dlg-meta">
+                <div class="sd-dlg-row"><dt class="sd-dlg-label">目录</dt><dd class="sd-dlg-value sd-dlg-path" title="D:\lootboot">D:\lootboot</dd></div>
+                <div class="sd-dlg-row"><dt class="sd-dlg-label">自动清理</dt><dd class="sd-dlg-value"><span class="sd-dlg-badge"><span class="sd-dlg-badge-dot"></span><span>保留 30 天</span></span></dd></div>
+              </dl>
+            </div>
+          </div>
+          <div class="sd-dlg-actions">
+            <button class="sd-dlg-btn" type="button">取消</button>
+            <button class="sd-dlg-btn sd-dlg-btn-primary" type="button">移入回收站</button>
+          </div>
+        </div>
+      </div>
+    </figure>
+
+    <figure class="preview">
+      <h2><span>DEFAULT</span>默认 · 深色</h2>
+      <div class="stage dark" data-theme="dark">
+        <div class="sd-dlg-backdrop"></div>
+        <div class="sd-dlg" role="alertdialog" aria-modal="true" aria-label="移入回收站">
+          <div class="sd-dlg-head">
+            <span class="sd-dlg-mark"><span class="sd-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4.2h11"/><path d="M6.4 4.2V3c0-.44.36-.8.8-.8h1.6c.44 0 .8.36.8.8v1.2"/><path d="M4 4.2l.55 8.9c.03.5.45.9.96.9h4.98c.5 0 .93-.4.96-.9L12 4.2"/><path d="M6.6 7v4.4M9.4 7v4.4"/></svg></span></span>
+            <div class="sd-dlg-heading">
+              <h2 class="sd-dlg-title"><span>移入回收站</span></h2>
+              <div class="sd-dlg-subtitle">移入后可在回收站中随时恢复</div>
+            </div>
+          </div>
+          <div class="sd-dlg-body">
+            <div class="sd-dlg-panel">
+              <div class="sd-dlg-subject">
+                <div class="sd-dlg-overline">会话</div>
+                <div class="sd-dlg-subject-name">会话清理策略</div>
+              </div>
+              <dl class="sd-dlg-meta">
+                <div class="sd-dlg-row"><dt class="sd-dlg-label">目录</dt><dd class="sd-dlg-value sd-dlg-path" title="D:\lootboot">D:\lootboot</dd></div>
+                <div class="sd-dlg-row"><dt class="sd-dlg-label">自动清理</dt><dd class="sd-dlg-value"><span class="sd-dlg-badge"><span class="sd-dlg-badge-dot"></span><span>保留 30 天</span></span></dd></div>
+              </dl>
+            </div>
+          </div>
+          <div class="sd-dlg-actions">
+            <button class="sd-dlg-btn" type="button">取消</button>
+            <button class="sd-dlg-btn sd-dlg-btn-primary" type="button">移入回收站</button>
+          </div>
+        </div>
+      </div>
+    </figure>
+
+    <figure class="preview">
+      <h2><span>STATE</span>自动清理已关闭</h2>
+      <div class="stage light">
+        <div class="sd-dlg-backdrop"></div>
+        <div class="sd-dlg" role="alertdialog" aria-modal="true" aria-label="移入回收站">
+          <div class="sd-dlg-head">
+            <span class="sd-dlg-mark"><span class="sd-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4.2h11"/><path d="M6.4 4.2V3c0-.44.36-.8.8-.8h1.6c.44 0 .8.36.8.8v1.2"/><path d="M4 4.2l.55 8.9c.03.5.45.9.96.9h4.98c.5 0 .93-.4.96-.9L12 4.2"/><path d="M6.6 7v4.4M9.4 7v4.4"/></svg></span></span>
+            <div class="sd-dlg-heading">
+              <h2 class="sd-dlg-title"><span>移入回收站</span></h2>
+              <div class="sd-dlg-subtitle">移入后可在回收站中随时恢复</div>
+            </div>
+          </div>
+          <div class="sd-dlg-body">
+            <div class="sd-dlg-panel">
+              <div class="sd-dlg-subject">
+                <div class="sd-dlg-overline">会话</div>
+                <div class="sd-dlg-subject-name">会话清理策略</div>
+              </div>
+              <dl class="sd-dlg-meta">
+                <div class="sd-dlg-row"><dt class="sd-dlg-label">目录</dt><dd class="sd-dlg-value sd-dlg-path" title="D:\lootboot">D:\lootboot</dd></div>
+                <div class="sd-dlg-row"><dt class="sd-dlg-label">自动清理</dt><dd class="sd-dlg-value"><span class="sd-dlg-badge sd-dlg-badge-muted"><span>已关闭</span></span></dd></div>
+              </dl>
+            </div>
+          </div>
+          <div class="sd-dlg-actions">
+            <button class="sd-dlg-btn" type="button">取消</button>
+            <button class="sd-dlg-btn sd-dlg-btn-primary" type="button">移入回收站</button>
+          </div>
+        </div>
+      </div>
+    </figure>
+
+    <figure class="preview">
+      <h2><span>STATE</span>会话运行中</h2>
+      <div class="stage light">
+        <div class="sd-dlg-backdrop"></div>
+        <div class="sd-dlg" role="alertdialog" aria-modal="true" aria-label="移入回收站">
+          <div class="sd-dlg-head">
+            <span class="sd-dlg-mark"><span class="sd-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4.2h11"/><path d="M6.4 4.2V3c0-.44.36-.8.8-.8h1.6c.44 0 .8.36.8.8v1.2"/><path d="M4 4.2l.55 8.9c.03.5.45.9.96.9h4.98c.5 0 .93-.4.96-.9L12 4.2"/><path d="M6.6 7v4.4M9.4 7v4.4"/></svg></span></span>
+            <div class="sd-dlg-heading">
+              <h2 class="sd-dlg-title"><span>移入回收站</span></h2>
+              <div class="sd-dlg-subtitle">移入后可在回收站中随时恢复</div>
+            </div>
+          </div>
+          <div class="sd-dlg-body">
+            <div class="sd-dlg-panel">
+              <div class="sd-dlg-subject">
+                <div class="sd-dlg-overline">会话</div>
+                <div class="sd-dlg-subject-name">会话清理策略</div>
+              </div>
+              <dl class="sd-dlg-meta">
+                <div class="sd-dlg-row"><dt class="sd-dlg-label">目录</dt><dd class="sd-dlg-value sd-dlg-path" title="D:\lootboot">D:\lootboot</dd></div>
+                <div class="sd-dlg-row"><dt class="sd-dlg-label">自动清理</dt><dd class="sd-dlg-value"><span class="sd-dlg-badge"><span class="sd-dlg-badge-dot"></span><span>保留 30 天</span></span></dd></div>
+              </dl>
+            </div>
+            <div class="sd-dlg-note sd-dlg-note-warn">会话正在运行，结束后才能移入回收站。</div>
+          </div>
+          <div class="sd-dlg-actions">
+            <button class="sd-dlg-btn" type="button">取消</button>
+            <button class="sd-dlg-btn sd-dlg-btn-primary" type="button" disabled>移入回收站</button>
+          </div>
+        </div>
+      </div>
+    </figure>
+
+    <figure class="preview">
+      <h2><span>TERMINAL</span>无法定位会话</h2>
+      <div class="stage light">
+        <div class="sd-dlg-backdrop"></div>
+        <div class="sd-dlg" role="alertdialog" aria-modal="true" aria-label="移入回收站">
+          <div class="sd-dlg-head">
+            <span class="sd-dlg-mark"><span class="sd-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4.2h11"/><path d="M6.4 4.2V3c0-.44.36-.8.8-.8h1.6c.44 0 .8.36.8.8v1.2"/><path d="M4 4.2l.55 8.9c.03.5.45.9.96.9h4.98c.5 0 .93-.4.96-.9L12 4.2"/><path d="M6.6 7v4.4M9.4 7v4.4"/></svg></span></span>
+            <div class="sd-dlg-heading">
+              <h2 class="sd-dlg-title"><span>移入回收站</span></h2>
+            </div>
+          </div>
+          <div class="sd-dlg-body">
+            <div class="sd-dlg-text">无法定位该会话，可能已被删除或归档。请刷新页面后重试。</div>
+          </div>
+          <div class="sd-dlg-actions">
+            <button class="sd-dlg-btn sd-dlg-btn-warn" type="button">关闭</button>
+          </div>
+        </div>
+      </div>
+    </figure>
+
+  </div>
+  <footer>静态预览：结构与样式取自 client/client.js 的 TrashConfirmDialog；主题令牌取自 DSH design-platform.css。悬停、聚焦与按压态需在真实界面中体验。</footer>
+</main>
+</body>
+</html>

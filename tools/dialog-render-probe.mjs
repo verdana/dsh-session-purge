@@ -104,13 +104,13 @@ await page.goto(url, { waitUntil: 'load' });
 await page.waitForTimeout(1200);
 
 const readDialogs = () => page.evaluate(() => [...document.querySelectorAll('.sd-dlg')].map((d) => {
-    const icon = d.querySelector('.sd-dlg-title .sd-icon');
+    const icon = d.querySelector('.sd-dlg-mark .sd-icon') ?? d.querySelector('.sd-dlg-title .sd-icon');
     const buttons = [...d.querySelectorAll('.sd-dlg-actions button')];
     return {
         className: d.className,
         ariaLabel: d.getAttribute('aria-label'),
         title: d.querySelector('.sd-dlg-title span:last-child')?.textContent ?? '',
-        body: [...d.querySelectorAll('.sd-dlg-text,.sd-dlg-cwd,.sd-dlg-note,.sd-dlg-err')].map((n) => n.textContent),
+        body: [...d.querySelectorAll('.sd-dlg-text,.sd-dlg-subject-name,.sd-dlg-value,.sd-dlg-note,.sd-dlg-err')].map((n) => n.textContent),
         iconColor: icon === null ? null : getComputedStyle(icon).color,
         iconPath: icon?.querySelector('path')?.getAttribute('d') ?? null,
         buttons: buttons.map((b) => ({ text: b.textContent, className: b.className, background: getComputedStyle(b).backgroundColor })),
