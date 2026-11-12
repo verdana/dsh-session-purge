@@ -1512,10 +1512,15 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 
 	// ── DOM injection into the session-row menu ──────────────────────────────
 
-	/** The built-in session-row verbs, in render order, per locale. */
+	/**
+	 * The built-in session-row verbs, in render order, per locale. The third verb
+	 * is a pair: a live row offers 归档会话, an archived row offers 取消归档 in the
+	 * same slot — either one is the anchor the delete entry follows, so archived
+	 * rows get the entry too.
+	 */
 	var SESSION_MENU_SEQUENCES = [
-		["重命名", "分叉会话", "归档会话"],
-		["Rename", "Fork session", "Archive session"]
+		["重命名", "分叉会话", ["归档会话", "取消归档"]],
+		["Rename", "Fork session", ["Archive session", "Unarchive session"]]
 	];
 
 	/** The archive verb, which anchors where the delete entry is inserted. */
@@ -1556,7 +1561,8 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 	 * Do these labels carry one built-in verb sequence, in order?
 	 * Extra entries (the pin row before it, the 0.2.1 Copy Session ID row and
 	 * plugin rows after it) are allowed; a label may also carry a trailing
-	 * shortcut keycap.
+	 * shortcut keycap. The archive slot accepts 取消归档 as well, so an archived
+	 * row's menu matches even though it has no 归档会话 row.
 	 * @param labels - labels from {@link menuItemLabels}.
 	 * @returns true when a known sequence appears as an ordered subsequence.
 	 */
@@ -1565,7 +1571,7 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 			var seq = SESSION_MENU_SEQUENCES[s];
 			var at = 0;
 			for (var i = 0; i < labels.length && at < seq.length; i++) {
-				if (labelIs(labels[i], seq[at])) at++;
+				if (labelIsAny(labels[i], seq[at])) at++;
 			}
 			if (at === seq.length) return true;
 		}
@@ -1579,6 +1585,21 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 	}
 
 	/**
+	 * Is this label any one of the given verbs? A sequence step is either one verb
+	 * or several verbs that share a slot (the archive slot also offers 取消归档).
+	 * @param label - one menu label.
+	 * @param verb - a verb, or an array of acceptable verbs for that slot.
+	 * @returns true when the label matches any of them.
+	 */
+	function labelIsAny(label, verb) {
+		if (typeof verb === "string") return labelIs(label, verb);
+		for (var v = 0; v < verb.length; v++) {
+			if (labelIs(label, verb[v])) return true;
+		}
+		return false;
+	}
+
+	/**
 	 * Does this div[role=menu] carry the built-in session verbs?
 	 * @param menuEl - the candidate `div[role=menu]`.
 	 * @returns true when the menu is a session-row action menu.
@@ -1589,11 +1610,12 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 
 	/**
 	 * Index of the archive row, whose wrapper the delete entry is cloned from
-	 * and inserted after. Reading the labels (rather than assuming the archive
-	 * row is last) keeps the insert inside the built-in block even though the
-	 * menu appends plugin-registered rows behind it.
+	 * and inserted after. An archived row shows 取消归档 in that slot instead,
+	 * so that verb is the anchor too. Reading the labels (rather than assuming
+	 * the row is last) keeps the insert inside the built-in block even though
+	 * the menu appends plugin-registered rows behind it.
 	 * @param labels - labels from {@link menuItemLabels}.
-	 * @returns the archive row's index, or -1.
+	 * @returns the archive (or unarchive) row's index, or -1.
 	 */
 	function archiveIndex(labels) {
 		for (var i = 0; i < labels.length; i++) {
@@ -1622,7 +1644,7 @@ window.__ModuleLoader__.load({ id: "dsh-session-purge", factory: (require) => {
 	 * the archive item wrapper — inherits the exact upstream classes — then
 	 * swapping icon + label and tinting it warning amber rather than danger red,
 	 * because the action is reversible. Inserted immediately after the archive
-	 * row.
+	 * row — or after 取消归档 on an archived row.
 	 */
 	function injectMenuItem(menuEl) {
 		var btns = menuEl.querySelectorAll("button[role=menuitem]");

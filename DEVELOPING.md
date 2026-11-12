@@ -162,8 +162,9 @@ npm run release -- --bump patch --smoke   # 真发布并冒烟
 | 侧栏面板 | rc.3 起「插件 / 自动化任务 / 更多」成为侧栏面板行（`sidebar.panellist`）；插件的垃圾桶图标挂在**工作区行**的 `.headerActions` 上，与这些面板行互不影响 | 同 0.2.1；行 ⋯ 触发器改由共享 `contextMenu.button` 工厂槽渲染，`aria-label` / `data-context-menu-trigger` / `span.rowActions` 全部保留 |
 
 插件按「内置三项作为有序子序列」识别菜单（不要求恰好三项），按 `aria-hidden` 过滤
-键帽，把「删除会话」插在「归档会话」之后。多出来的置顶行、插件行和 0.2.1 的
-「复制 Session ID」都不影响它。上游再改菜单形状时，`tools/helpers.test.mjs` 是最先
+键帽，把「删除会话」插在「归档会话」之后；归档行的第三项是「取消归档」，序列的归档槽
+由 `labelIsAny()` 同时接受两者，因此同一位置照样注入。多出来的置顶行、插件行和 0.2.1
+的「复制 Session ID」都不影响它。上游再改菜单形状时，`tools/helpers.test.mjs` 是最先
 该失败的地方；改菜单识别逻辑时**必须同步更新那里的 fixture**。
 
 设置入口同理：`openSettingsFromBin()` 先找 ≤0.2.0 的「设置」按钮，找不到再走

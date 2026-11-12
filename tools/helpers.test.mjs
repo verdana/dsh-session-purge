@@ -741,6 +741,14 @@ test('plugin rows appended after the built-in block do not break detection', () 
 test('an archived row anchors on the unarchive verb', () => {
     assert.equal(MENU.archiveIndex(['取消归档Ctrl+Alt+A']), 0);
     assert.equal(MENU.archiveIndex(['Unarchive session']), 0);
+    // 取消归档 takes the archive slot, so the archived menu must pass detection
+    // as well — otherwise the anchor is found but never reached (the old bug).
+    const archived = ['置顶会话', '重命名Ctrl+Shift+R', '分叉会话Ctrl+Shift+F', '取消归档Ctrl+Alt+A'];
+    assert.equal(MENU.matchesSequence(archived), true);
+    assert.equal(MENU.archiveIndex(archived), 3);
+    const archivedEnglish = ['Pin session', 'RenameCtrl+Shift+R', 'Fork sessionCtrl+Shift+F', 'Unarchive session'];
+    assert.equal(MENU.matchesSequence(archivedEnglish), true);
+    assert.equal(MENU.archiveIndex(archivedEnglish), 3);
 });
 
 test('unrelated menus are refused, so no delete item is injected into them', () => {
@@ -753,6 +761,8 @@ test('unrelated menus are refused, so no delete item is injected into them', () 
     assert.equal(MENU.matchesSequence(['重命名']), false);
     // Order matters: archive before fork is not the built-in sequence.
     assert.equal(MENU.matchesSequence(['归档会话', '分叉会话', '重命名']), false);
+    // The unarchive verb alone does not make a session menu.
+    assert.equal(MENU.matchesSequence(['置顶会话', '取消归档']), false);
     assert.equal(MENU.archiveIndex([]), -1);
     assert.equal(MENU.archiveIndex(['重命名', '分叉会话']), -1);
 });
@@ -822,6 +832,25 @@ test('a menu without a shortcut keycap does not lose its labels', () => {
     const noKeycaps = fakeMenu([{ label: 'Rename' }, { label: 'Fork session' }, { label: 'Archive session' }]);
     assert.deepEqual(MENU.menuItemLabels(noKeycaps), ['Rename', 'Fork session', 'Archive session']);
     assert.equal(MENU.isSessionMenuDom(noKeycaps), true);
+});
+
+test('an archived row menu is detected and anchors after its unarchive row', () => {
+    const archived = fakeMenu([
+        { label: '置顶会话' },
+        { label: '重命名', keys: 'Ctrl+Shift+R' },
+        { label: '分叉会话', keys: 'Ctrl+Shift+F' },
+        { label: '取消归档', keys: 'Ctrl+Alt+A' },
+    ]);
+    assert.deepEqual(MENU.menuItemLabels(archived),
+        ['置顶会话', '重命名', '分叉会话', '取消归档']);
+    assert.equal(MENU.isSessionMenuDom(archived), true);
+    assert.equal(MENU.archiveIndex(MENU.menuItemLabels(archived)), 3);
+
+    const archivedEnglish = fakeMenu([
+        { label: 'Rename' }, { label: 'Fork session' }, { label: 'Unarchive session' },
+    ]);
+    assert.equal(MENU.isSessionMenuDom(archivedEnglish), true);
+    assert.equal(MENU.archiveIndex(MENU.menuItemLabels(archivedEnglish)), 2);
 });
 
 /**

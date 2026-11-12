@@ -120,6 +120,10 @@ locale `locales.ts:63,189`），因此 `isSessionMenuDom()` 为 false，`injectM
 **建议**：把序列改为「重命名/分叉/（归档或取消归档）」三种变体，或在 `matchesSequence` 里对
 unarchive 做等价替换；补一条整菜单 fixture 测试；同步修 README 里「归档行可移入回收站」的描述（若暂不修代码）。
 
+**已修复**（本节保留为当时的复现记录）：`SESSION_MENU_SEQUENCES` 的第三槽改为
+`["归档会话", "取消归档"]`（英文同理），`matchesSequence` 经 `labelIsAny()` 接受任一槽位词；
+`tools/helpers.test.mjs` 补了整菜单 fixture 与序列断言。
+
 ## F4（既有，已修）：`dshHomePath` 探测类型写错
 
 `lib/index.js:119-127` 期望 `ctx.get('dshHomePath')` 返回字符串，但上游提供的是**函数**
