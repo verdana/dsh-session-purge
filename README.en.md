@@ -67,10 +67,10 @@ dsh plugin --profile web remove dsh-session-purge
 
 ### Move a session to the bin
 
-Hover any session row → click `⋯` → **Move to recycle bin** → confirm. The row
-leaves the list immediately and the entry shows up in the bin (dialog or page). The
-menu item, the dialog, the page and the settings page all follow DSH's interface
-language.
+Hover any session row → click `⋯` → **Move to recycle bin** → confirm — or
+right-click the row, which opens the same menu. The row leaves the list immediately
+and the entry shows up in the bin (dialog or page). The menu item, the dialog, the
+page and the settings page all follow DSH's interface language.
 
 ### Open the bin
 
@@ -153,10 +153,9 @@ plugin, restart `dsh web` once; a page reload alone will not show the new footer
   and runs the next time you start `dsh web` (see Troubleshooting to cancel it).
 - **Archived sessions are not in the default list.** Reveal them with the list's
   View options → **All conversations (show archived)** or **Archived only**. An
-  archived row's menu is Pin / Rename / Fork session / Unarchive session — there is
-  no built-in **Archive session** row for the plugin to anchor to, so it does **not**
-  insert Move to recycle bin on archived rows. Unarchive the session first, then use
-  the `⋯` menu on a normal row.
+  archived row's menu is Pin / Rename / Fork session / Unarchive session; the plugin
+  anchors on **Unarchive session**, so **Move to recycle bin works on archived rows
+  too** — there is no need to unarchive first.
 - **Only directories it can prove are session logs get moved.** The plugin acts
   only on what the session persistence layer locates and whose filename is
   genuinely a session log (`session[.vN].jsonl[.zstd]`). It would rather refuse
@@ -185,6 +184,10 @@ plugin, restart `dsh web` once; a page reload alone will not show the new footer
   archived row), the plugin should insert its item right below that row; the icon
   sits immediately after **Add workspace**. If **Entry position** is **Menu** there is
   no icon by design — look for a **Recycle bin** row among Plugins / Automations instead.
+- **"Cannot locate this session" after opening the menu with a right-click?** Older
+  builds only recorded the target session when the `⋯` button was clicked, so a
+  right-click menu had no session id to fall back on. Current builds treat both paths
+  alike; if you still hit it, reload the page with Ctrl+Shift+R and try again.
 - **Cannot find the Settings page?** Since 0.2.1 the entry is the bottom-left
   **account menu → Settings**; there is no separate sidebar Settings button
   anymore. The policy line at the bottom of the bin (dialog or page) also opens
@@ -249,7 +252,11 @@ plugin, restart `dsh web` once; a page reload alone will not show the new footer
   (icon + dialog, menu + page, including switching back and forth and the narrow-width
   layout), plus (on 0.2.1) the
   account-menu settings entry and the dev repro scripts against the plugin-style
-  JSONL backend. rc.3 was never run on its own — it differs from its neighbours only
+  JSONL backend. **0.2.2-rc.2 has also been re-verified**: in an isolated instance bin
+  delete / restore are byte-identical, settings and bin survive a restart, and the
+  browser half is composed and delivered normally by rc.2's `client-modules`
+  (see [docs/compat-0.2.2-rc.2.md](https://github.com/verdana/dsh-session-purge/blob/main/docs/compat-0.2.2-rc.2.md)).
+  rc.3 was never run on its own — it differs from its neighbours only
   in tooltip and logging behavior; none of the contracts this plugin relies on
   changed anywhere between rc.2 and rc.5 (see
   [docs/compat-0.2.1-rc.5.md](https://github.com/verdana/dsh-session-purge/blob/main/docs/compat-0.2.1-rc.5.md)).
