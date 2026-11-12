@@ -7,7 +7,7 @@
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循
 [语义化版本](https://semver.org/lang/zh-CN/)。
 
-## [未发布]
+## [0.5.9] - 2026-11-12
 
 ### 性能
 
@@ -157,7 +157,8 @@
 - 保留期自动清理：默认保留 30 天，启动时与每 6 小时各扫一次。
 - 侧边栏「工作区」行的回收站入口、回收站面板、设置页（`settings.section`）与自动清理设置。
 
-[未发布]: https://github.com/verdana/dsh-session-purge/compare/v0.5.8...HEAD
+[未发布]: https://github.com/verdana/dsh-session-purge/compare/v0.5.9...HEAD
+[0.5.9]: https://github.com/verdana/dsh-session-purge/compare/v0.5.8...v0.5.9
 [0.5.8]: https://github.com/verdana/dsh-session-purge/compare/v0.5.7...v0.5.8
 [0.5.7]: https://github.com/verdana/dsh-session-purge/compare/v0.5.6...v0.5.7
 [0.5.6]: https://github.com/verdana/dsh-session-purge/compare/v0.5.5...v0.5.6
