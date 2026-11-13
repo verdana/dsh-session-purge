@@ -26,6 +26,13 @@
   `--dsw-menu-surface-fill` 叠在不透明底色上，并改用 `--dsw-alias-state-business-primary` 作焦点环，
   深色下不再出现白圈或透出下方开关。
 
+### 文档
+
+- 完成 DSH `0.2.2-rc.3` 兼容性核查并留档 `docs/compat-0.2.2-rc.3.md`：承载 Host 契约的包在
+  rc.3 里只改了 `package.json`，浏览器半被依赖的菜单 / 设置 / 侧栏 header DOM 零改动，因此本轮
+  **无代码改动**；rc.2 的两处语义变化（`agents.enter()` 单参、`unarchiveSession` 钩子无
+  try/catch）仍在，均非阻断。
+
 ## [0.5.9] - 2026-11-12
 
 ### 性能

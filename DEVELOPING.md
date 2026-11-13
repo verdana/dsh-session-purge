@@ -23,7 +23,8 @@
 - `docs/compat-0.2.1-rc.4.md` — rc.2 → rc.4 的增量核查（历史切片）
 - `docs/compat-0.2.1-rc.5.md` — rc.4 → rc.5 的增量核查（历史切片）
 - `docs/compat-0.2.2-rc.1.md` — 0.2.2-alpha.3 → rc.1 的增量核查（当时只改了 vendor 版本号）
-- `docs/compat-0.2.2-rc.2.md` — rc.1 → rc.2 的增量核查（当前支持面的依据）
+- `docs/compat-0.2.2-rc.2.md` — rc.1 → rc.2 的增量核查（0.5.8 时期）
+- `docs/compat-0.2.2-rc.3.md` — rc.2 → rc.3 的增量核查（当前支持面的依据）
 
 ## 本地开发
 
@@ -153,13 +154,17 @@ npm run release -- --bump patch --smoke   # 真发布并冒烟
 浏览器半靠 DOM 嗅探会话行菜单（上游没有可用扩展点），菜单形状是主要需要随版本走
 的部分。支持面为 0.2.x（0.2.0-rc.2 起）；0.1.x 的菜单与 props 差异已不再适配：
 
-| | 0.2.1-rc.2 – rc.5 | 0.2.2-rc.2 |
+| | 0.2.1-rc.2 – rc.5 | 0.2.2-rc.2 / rc.3 |
 |---|---|---|
 | 菜单项 | 置顶会话 + 重命名 / 分叉会话 / 归档会话，归档后多「复制 Session ID / Copy Session ID」 | 同 0.2.1（`session-actions/` 目录零 diff）；归档行带 `separatorBefore` 分隔线 |
 | 按钮文本 | 标签 + 快捷键键帽（`aria-hidden` 的 `<span>`）；「复制 Session ID」没有绑定，因而没有键帽 | 同 0.2.1 |
 | 行组件 props | 动作走 slot；props 只有 `onOpen` / `onRenameRequest` | 同 0.2.1 |
 | 设置入口 | **账号菜单（账号菜单 → 设置）**：`settings.launcher` 被账号菜单占用，不再有独立的「设置」按钮 | 同 0.2.1 |
 | 侧栏面板 | rc.3 起「插件 / 自动化任务 / 更多」成为侧栏面板行（`sidebar.panellist`）；插件的垃圾桶图标挂在**工作区行**的 `.headerActions` 上，与这些面板行互不影响 | 同 0.2.1；行 ⋯ 触发器改由共享 `contextMenu.button` 工厂槽渲染，`aria-label` / `data-context-menu-trigger` / `span.rowActions` 全部保留 |
+
+`0.2.2-rc.3` 未改上表任何形状：它只在「新建会话」行外面包了一层 `div.newSessionRow` 并新增
+`sidebar.session.action` HOC 槽（作用是「包一层」，插件不占用），以及为别的插件新增
+`workspace.picker` 组件工厂槽。行 ⋯ 触发器、`.headerActions` 锚点、菜单基元与槽位行号全部不变。
 
 插件按「内置三项作为有序子序列」识别菜单（不要求恰好三项），按 `aria-hidden` 过滤
 键帽，把「删除会话」插在「归档会话」之后；归档行的第三项是「取消归档」，序列的归档槽
@@ -175,7 +180,7 @@ npm run release -- --bump patch --smoke   # 真发布并冒烟
 ### 0.2.2 起的两个语义变化
 
 `0.2.2-rc.2` 有两条不是 DOM 形状、但会影响插件语义的上游改动。核对细节见
-`docs/compat-0.2.2-rc.2.md`。
+`docs/compat-0.2.2-rc.2.md`；`0.2.2-rc.3` 复核两项**均仍在**（见 `docs/compat-0.2.2-rc.3.md`）。
 
 - **`agents.enter()` 只收一个参数**：`AgentEntry.owner` 字段、`ClientAgentOptions` 的
   `parentAgent` / `isOwnedBy` / `roots()` 都已删除。插件失败回滚仍写
