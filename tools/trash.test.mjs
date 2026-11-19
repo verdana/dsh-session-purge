@@ -15,7 +15,7 @@
  */
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { cp, mkdir, mkdtemp, readFile, readdir, rm, stat, symlink, writeFile } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, readFile, readdir, rm, rmdir, stat, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, posix, relative, win32 } from 'node:path';
 import { after, test } from 'node:test';
@@ -53,8 +53,46 @@ const SESSION_LOG = 'session.v4.jsonl.zstd';
 // ── fixtures ───────────────────────────────────────────────────────────────
 
 const homes = [];
+
+/**
+ * Windows refuses to remove a directory junction with a recursive rm: Node
+ * walks into the link, cannot empty it, and reports ENOTEMPTY. The refusal
+ * tests plant junctions inside the bin on purpose, so teardown unlinks them
+ * first and removes the rest of the tree afterwards.
+ */
+async function removeHome(home) {
+    const pending = [home];
+    while (pending.length > 0) {
+        const dir = pending.pop();
+        let entries;
+        try {
+            entries = await readdir(dir, { withFileTypes: true });
+        }
+        catch {
+            continue;
+        }
+        for (const entry of entries) {
+            const path = join(dir, entry.name);
+            if (entry.isSymbolicLink()) {
+                // A junction goes away with rmdir, a file link with unlink;
+                // either way the link target stays untouched.
+                try {
+                    await rmdir(path);
+                }
+                catch {
+                    await rm(path, { force: true });
+                }
+            }
+            else if (entry.isDirectory()) {
+                pending.push(path);
+            }
+        }
+    }
+    await rm(home, { recursive: true, force: true });
+}
+
 after(async () => {
-    for (const home of homes) await rm(home, { recursive: true, force: true });
+    for (const home of homes) await removeHome(home);
 });
 
 /**
