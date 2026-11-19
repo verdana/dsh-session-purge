@@ -7,6 +7,32 @@
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循
 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [未发布]
+
+### 文档
+
+- 完成 DSH `0.2.2-rc.4` 兼容性核查并留档 `docs/compat-0.2.2-rc.4.md`：rc.3→rc.4 的 395 个
+  文件里 379 个是 `package.json` 的版本号，去掉后只剩 16 个（llm-deepseek 内容安全/拒答、
+  liveshare tunnel worker、升级指引、会话快照）；承载 Host 16 项与浏览器 18 项契约的包
+  **零源码变化**，因此本轮**无产品代码改动**。隔离 profile 实机复跑 8 条路由与
+  trash→restore 闭环。
+- 完成 DSH `0.2.2-rc.5` 兼容性核查并留档 `docs/compat-0.2.2-rc.5.md`：rc.4→rc.5 的 433 个
+  文件里去掉版本号剩 53 个，内容只有两件事——网页搜索默认提供方改为按模型路由自动选择
+  （base patch 删掉 `searchProvider`，`deepseek-official`/`deepseek-account` 路由改走 legacy
+  Messages 搜索），以及设置页搜索卡新增 Automatic。`packages/host`/`session`/`core`/
+  `workspace`/`boot`/`api` 的 57 个文件全是版本号，`packages/client` 的源码改动只在
+  `ui-settings-web-search`，**零源码变化落在插件调用面上**，因此本轮**无产品代码改动**。
+  隔离 profile 实机复跑 9 条路由、trash→restore 闭环与客户端 bundle 下发。
+
+### 测试
+
+- `tools/trash.test.mjs` 的收尾清理改为按链接类型删除（`removeHome`）：两个拒绝用例会在
+  回收站里造 Windows junction（`tools/trash.test.mjs:689`、`:725`），`rm(home, { recursive })`
+  顺着 junction 走进目标目录去删，随后对 `trash` 目录 `rmdir` 报 `ENOTEMPTY`，被
+  `node --test` 记成一条失败。原先按「boot sweep 写 `trash/.state.json` 的竞态」加重试处理，
+  实测 40×40ms 仍失败，说明归因不成立；改为自底向上遍历，链接项用 `rmdir` 摘链（不碰目标），
+  其余目录最后整体 `rm`。修复后本机连跑 3 次 `pass 34 / fail 0`，四个测试文件合计 141 项全过。
+
 ## [0.5.10] - 2026-11-14
 
 ### 变更
